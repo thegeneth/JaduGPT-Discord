@@ -48,15 +48,21 @@ async def generate_completion_response(
             convo=Conversation(messages + [Message(MY_BOT_NAME)]),
         )
         rendered = prompt.render()
-        response = openai.Completion.create(
-            engine="text-davinci-003",
-            prompt=rendered,
+        message_objects = []
+        for message in messages:  
+            message_object = {"role": message.user, "content": str(message.text)}
+            message_objects.append(message_object)
+        for obj in message_objects:
+            if obj['role'] == 'JaduGPT':
+                obj['role'] = 'assistant'
+            else:
+                obj['role'] = 'user'
+        response = openai.ChatCompletion.create(
+            model = 'gpt-3.5-turbo',
             temperature=1.0,
-            top_p=0.9,
-            max_tokens=512,
-            stop=["<|endoftext|>"],
+            messages=message_objects
         )
-        reply = response.choices[0].text.strip()
+        reply = response.choices[0]["message"]["content"]
         if reply:
             flagged_str, blocked_str = moderate_message(
                 message=(rendered + reply)[-500:], user=user
