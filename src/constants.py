@@ -33,8 +33,10 @@ for s in server_channels:
     values = s.split(":")
     SERVER_TO_MODERATION_CHANNEL[int(values[0])] = int(values[1])
 
+private_thread='362924812288'
+public_thread='328565073920'
 # Send Messages, Create Public Threads, Send Messages in Threads, Manage Messages, Manage Threads, Read Message History, Use Slash Command
-BOT_INVITE_URL = f"https://discord.com/api/oauth2/authorize?client_id={DISCORD_CLIENT_ID}&permissions=328565073920&scope=bot"
+BOT_INVITE_URL = f"https://discord.com/api/oauth2/authorize?client_id={DISCORD_CLIENT_ID}&permissions={private_thread}&scope=bot"
 
 MODERATION_VALUES_FOR_BLOCKED = {
     "hate": 0.5,

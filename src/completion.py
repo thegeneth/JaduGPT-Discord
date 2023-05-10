@@ -49,6 +49,8 @@ async def generate_completion_response(
         )
         rendered = prompt.render()
         message_objects = []
+        system_prompt = {"role": 'system', "content": 'You are JaduGPT, a model just like ChatGPT but exclusive for Jadu NFT holders. Jadu is a collection of NFTs including a Jetpack, Hoverboard and Avatars.'}
+        message_objects.append(system_prompt)
         for message in messages:  
             message_object = {"role": message.user, "content": str(message.text)}
             message_objects.append(message_object)
@@ -59,7 +61,7 @@ async def generate_completion_response(
                 obj['role'] = 'user'
         response = openai.ChatCompletion.create(
             model = 'gpt-3.5-turbo',
-            temperature=1.0,
+            temperature=0,
             messages=message_objects
         )
         reply = response.choices[0]["message"]["content"]

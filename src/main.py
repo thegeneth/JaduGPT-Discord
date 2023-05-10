@@ -117,6 +117,7 @@ async def chat_command(int: discord.Interaction, message: str):
             )
             return
 
+        print(response)
         # create the thread
         thread = await response.create_thread(
             name=f"{ACTIVATE_THREAD_PREFX} {user.name[:20]} - {message[:30]}",
