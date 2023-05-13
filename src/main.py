@@ -116,15 +116,22 @@ async def chat_command(int: discord.Interaction, message: str):
                 f"Failed to start chat {str(e)}", ephemeral=True
             )
             return
-
-        print(response)
+      
         # create the thread
-        thread = await response.create_thread(
+        thread = await int.channel.create_thread(
             name=f"{ACTIVATE_THREAD_PREFX} {user.name[:20]} - {message[:30]}",
             slowmode_delay=1,
             reason="gpt-bot",
             auto_archive_duration=60,
+            invitable=True,
+            type=None
         )
+        # thread = await response.create_thread(
+        #     name=f"{ACTIVATE_THREAD_PREFX} {user.name[:20]} - {message[:30]}",
+        #     slowmode_delay=1,
+        #     reason="gpt-bot",
+        #     auto_archive_duration=60,
+        # )
         async with thread.typing():
             # fetch completion
             messages = [Message(user=user.name, text=message)]

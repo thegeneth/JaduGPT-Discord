@@ -111,6 +111,8 @@ async def process_response(
     status = response_data.status
     reply_text = response_data.reply_text
     status_text = response_data.status_text
+    
+    await thread.send(f"{user.mention}")
     if status is CompletionResult.OK or status is CompletionResult.MODERATION_FLAGGED:
         sent_message = None
         if not reply_text:
@@ -132,6 +134,8 @@ async def process_response(
                 message=reply_text,
                 url=sent_message.jump_url if sent_message else "no url",
             )
+
+            
 
             await thread.send(
                 embed=discord.Embed(
