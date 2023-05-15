@@ -126,12 +126,7 @@ async def chat_command(int: discord.Interaction, message: str):
             invitable=True,
             type=None
         )
-        # thread = await response.create_thread(
-        #     name=f"{ACTIVATE_THREAD_PREFX} {user.name[:20]} - {message[:30]}",
-        #     slowmode_delay=1,
-        #     reason="gpt-bot",
-        #     auto_archive_duration=60,
-        # )
+        await thread.send(f"{user.mention}" + " started this conversation by saying "+ f'"{message}"')
         async with thread.typing():
             # fetch completion
             messages = [Message(user=user.name, text=message)]

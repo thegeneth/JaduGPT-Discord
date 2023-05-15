@@ -15,6 +15,22 @@ from src.moderation import (
     send_moderation_flagged_message,
     send_moderation_blocked_message,
 )
+import tiktoken
+import os
+from dotenv import load_dotenv
+from mysql.connector import Error
+import mysql.connector
+import MySQLdb
+from datetime import datetime
+load_dotenv()
+
+encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+
+def num_tokens_from_string(string: str) -> int:
+    """Returns the number of tokens in a text string."""
+    encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+    num_tokens = len(encoding.encode(string))
+    return num_tokens
 
 MY_BOT_NAME = BOT_NAME
 MY_BOT_EXAMPLE_CONVOS = EXAMPLE_CONVOS
@@ -51,20 +67,49 @@ async def generate_completion_response(
         message_objects = []
         system_prompt = {"role": 'system', "content": 'You are JaduGPT, a model just like ChatGPT but exclusive for Jadu NFT holders. Jadu is a collection of NFTs including a Jetpack, Hoverboard and Avatars.'}
         message_objects.append(system_prompt)
+        token_list = []
         for message in messages:  
             message_object = {"role": message.user, "content": str(message.text)}
             message_objects.append(message_object)
         for obj in message_objects:
+            token_list.append(num_tokens_from_string(obj['content']))
             if obj['role'] == 'JaduGPT':
                 obj['role'] = 'assistant'
+            elif obj['role'] == 'system':
+                obj['role'] = 'system'
             else:
                 obj['role'] = 'user'
+        
         response = openai.ChatCompletion.create(
             model = 'gpt-3.5-turbo',
             temperature=0,
             messages=message_objects
         )
         reply = response.choices[0]["message"]["content"]
+        
+        token_list.append(num_tokens_from_string(reply))
+        
+        connection = MySQLdb.connect(
+            host= os.getenv("HOST"),
+            user=os.getenv("USER"),
+            password= os.getenv("PASSWORD"),
+            db= os.getenv("DATABASE"),
+            ssl=os.getenv("SSL_CERT")
+        )
+
+        mycursor = connection.cursor()
+
+        tokenSum = round(sum(token_list)*1.1)
+
+        cost = tokenSum/1000*0.002
+
+        sql = "INSERT INTO JaduGPT (User, Cost, Datetime) VALUES (%s, %s, %s)"
+        val = (str(user), str(cost), str(datetime.now()))
+        mycursor.execute(sql, val)
+
+        connection.commit()
+        connection.close()
+
         if reply:
             flagged_str, blocked_str = moderate_message(
                 message=(rendered + reply)[-500:], user=user
@@ -112,7 +157,7 @@ async def process_response(
     reply_text = response_data.reply_text
     status_text = response_data.status_text
     
-    await thread.send(f"{user.mention}")
+    
     if status is CompletionResult.OK or status is CompletionResult.MODERATION_FLAGGED:
         sent_message = None
         if not reply_text:
