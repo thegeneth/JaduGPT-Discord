@@ -68,9 +68,10 @@ async def generate_completion_response(
         system_prompt = {"role": 'system', "content": 'You are JaduGPT, a model just like ChatGPT but exclusive for Jadu NFT holders. Jadu is a collection of NFTs including a Jetpack, Hoverboard and Avatars.'}
         message_objects.append(system_prompt)
         token_list = []
-        for message in messages:  
-            message_object = {"role": message.user, "content": str(message.text)}
-            message_objects.append(message_object)
+        for message in messages:
+            if message.text[0:2] != '<@':
+                message_object = {"role": message.user, "content": str(message.text)}
+                message_objects.append(message_object)
         for obj in message_objects:
             token_list.append(num_tokens_from_string(obj['content']))
             if obj['role'] == 'JaduGPT':
