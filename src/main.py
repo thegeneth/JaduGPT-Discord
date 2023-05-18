@@ -90,10 +90,10 @@ async def chat_command(int: discord.Interaction, message: str):
                 return
 
             embed = discord.Embed(
-                description=f"<@{user.id}> wants to chat! 🤖💬",
-                color=discord.Color.green(),
+                title='🤖💬 JaduGPT response will be sent on private thread!',
+                description=f"<@{user.id}> be sure not to spam! ",
+                color=discord.Color.green()
             )
-            embed.add_field(name=user.name, value='💬 Response will be sent on private thread')
 
             if len(flagged_str) > 0:
                 # message was flagged
@@ -127,6 +127,18 @@ async def chat_command(int: discord.Interaction, message: str):
             type=None
         )
         await thread.send(f"{user.mention}" + " started this conversation by saying "+ f'"{message}"')
+
+        embed = discord.Embed(
+                color=discord.Color.green(),
+                title=f"Be advised with instructions:",
+                description=''
+            )
+        embed.add_field(name='⚠️ Be sure not to spam!', value='We do not save your questions but we do monitor user interactions and costs', inline=False)
+        embed.add_field(name='✅ Start new /chat:', value='Start a new /chat whenever you want to change the subject of your conversation', inline=False)
+        embed.add_field(name='👷 Ask for help:', value='You can ask for help from the team or from @thegen (the project dev)', inline=False)
+
+        await thread.send(embed=embed)
+
         async with thread.typing():
             # fetch completion
             messages = [Message(user=user.name, text=message)]

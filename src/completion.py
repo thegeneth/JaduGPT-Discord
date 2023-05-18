@@ -65,7 +65,7 @@ async def generate_completion_response(
         )
         rendered = prompt.render()
         message_objects = []
-        system_prompt = {"role": 'system', "content": 'You are JaduGPT, a model just like ChatGPT but exclusive for Jadu NFT holders. Jadu is a collection of NFTs including a Jetpack, Hoverboard and Avatars.'}
+        system_prompt = {"role": 'system', "content": 'You are JaduGPT, a model just like ChatGPT but exclusive for Jadu NFT holders. Jadu is a collection of NFTs including a Jetpack, Hoverboard and Avatars. This project were created as a grant program lead by Thegen and voted by Jadu Community.'}
         message_objects.append(system_prompt)
         token_list = []
         for message in messages:
