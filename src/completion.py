@@ -104,8 +104,8 @@ async def generate_completion_response(
 
         cost = tokenSum/1000*0.002
 
-        sql = "INSERT INTO JaduGPT (User, Cost, Datetime) VALUES (%s, %s, %s)"
-        val = (str(user), str(cost), str(datetime.now()))
+        sql = "INSERT INTO JaduGPT (User, UserID, Cost, Datetime) VALUES (%s, %s,%s, %s)"
+        val = (str(user),str(user.id), str(cost), str(datetime.now()))
         mycursor.execute(sql, val)
 
         connection.commit()
