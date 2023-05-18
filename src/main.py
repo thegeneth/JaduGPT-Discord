@@ -93,7 +93,7 @@ async def chat_command(int: discord.Interaction, message: str):
                 description=f"<@{user.id}> wants to chat! 🤖💬",
                 color=discord.Color.green(),
             )
-            embed.add_field(name=user.name, value=message)
+            embed.add_field(name=user.name, value='💬 Response will be sent on private thread')
 
             if len(flagged_str) > 0:
                 # message was flagged
