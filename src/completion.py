@@ -92,7 +92,7 @@ async def generate_completion_response(
         
         connection = MySQLdb.connect(
             host= os.getenv("HOST"),
-            user=os.getenv("USER"),
+            user=os.getenv("USERNAME2"),
             password= os.getenv("PASSWORD"),
             db= os.getenv("DATABASE"),
             ssl=os.getenv("SSL_CERT")
@@ -142,12 +142,13 @@ async def generate_completion_response(
             return CompletionData(
                 status=CompletionResult.INVALID_REQUEST,
                 reply_text=None,
-                status_text=str(e),
+                status_text='Oops, an error occured while processing your request. Please try again and if error persist, please reach out to Toven or BobTFD (James). You can add them to the Thread by mentioning them with @.',
             )
     except Exception as e:
         logger.exception(e)
         return CompletionData(
-            status=CompletionResult.OTHER_ERROR, reply_text=None, status_text=str(e)
+            # status=CompletionResult.OTHER_ERROR, reply_text=None, status_text=str(e)
+            status=CompletionResult.OTHER_ERROR, reply_text=None, status_text='Oops, an error occured while processing your request. Please try again and if error persist, please reach out to Toven or BobTFD (James). You can add them to the Thread by mentioning them with @.'
         )
 
 
@@ -181,8 +182,6 @@ async def process_response(
                 url=sent_message.jump_url if sent_message else "no url",
             )
 
-            
-
             await thread.send(
                 embed=discord.Embed(
                     description=f"⚠️ **This conversation has been flagged by moderation.**",
@@ -208,14 +207,16 @@ async def process_response(
     elif status is CompletionResult.INVALID_REQUEST:
         await thread.send(
             embed=discord.Embed(
-                description=f"**Invalid request** - {status_text}",
+                # description=f"**Invalid request** - {status_text}",
+                description=f"**Invalid request** - Oops, an error occured while processing your request. Please try again and if error persist, please reach out to Toven or BobTFD (James). You can add them to the Thread by mentioning them with @.",
                 color=discord.Color.yellow(),
             )
         )
     else:
         await thread.send(
             embed=discord.Embed(
-                description=f"**Error** - {status_text}",
+                # description=f"**Error** - {status_text}",
+                description=f"**Error** - Oops, an error occured while processing your request. Please try again and if error persist, please reach out to Toven or BobTFD (James). You can add them to the Thread by mentioning them with @.",
                 color=discord.Color.yellow(),
             )
         )
