@@ -135,20 +135,20 @@ async def generate_completion_response(
     except openai.error.InvalidRequestError as e:
         if "This model's maximum context length" in e.user_message:
             return CompletionData(
-                status=CompletionResult.TOO_LONG, reply_text=None, status_text=str(e)
+                status=CompletionResult.TOO_LONG, reply_text=None, status_text="Failed to complete the chat, it seems text were too long. Please try again in a new chat. If the error continues reach out to moderators with specifications of when the error occured."
             )
         else:
             logger.exception(e)
             return CompletionData(
                 status=CompletionResult.INVALID_REQUEST,
                 reply_text=None,
-                status_text='Oops, an error occured while processing your request. Please try again and if error persist, please reach out to Toven or BobTFD (James). You can add them to the Thread by mentioning them with @.',
+                status_text='Oops, an error occured while processing your request. Please try again in a new chat, if error persist please reach out to moderators. You can add them to the Thread by mentioning them with @.',
             )
     except Exception as e:
         logger.exception(e)
         return CompletionData(
             # status=CompletionResult.OTHER_ERROR, reply_text=None, status_text=str(e)
-            status=CompletionResult.OTHER_ERROR, reply_text=None, status_text='Oops, an error occured while processing your request. Please try again and if error persist, please reach out to Toven or BobTFD (James). You can add them to the Thread by mentioning them with @.'
+            status=CompletionResult.OTHER_ERROR, reply_text=None, status_text='Oops, an error occured while processing your request. Please try again and if error persist, please reach out to moderators. You can add them to the Thread by mentioning them with @.'
         )
 
 
@@ -208,7 +208,7 @@ async def process_response(
         await thread.send(
             embed=discord.Embed(
                 # description=f"**Invalid request** - {status_text}",
-                description=f"**Invalid request** - Oops, an error occured while processing your request. Please try again and if error persist, please reach out to Toven or BobTFD (James). You can add them to the Thread by mentioning them with @.",
+                description=f"**Invalid request** - Oops, an error occured while processing your request. Please try again and if error persist, please reach out to moderators. You can add them to the Thread by mentioning them with @.",
                 color=discord.Color.yellow(),
             )
         )
@@ -216,7 +216,7 @@ async def process_response(
         await thread.send(
             embed=discord.Embed(
                 # description=f"**Error** - {status_text}",
-                description=f"**Error** - Oops, an error occured while processing your request. Please try again and if error persist, please reach out to Toven or BobTFD (James). You can add them to the Thread by mentioning them with @.",
+                description=f"**Error** - Oops, an error occured while processing your request. Please try again and if error persist, please reach out to moderators. You can add them to the Thread by mentioning them with @.",
                 color=discord.Color.yellow(),
             )
         )

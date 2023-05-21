@@ -139,7 +139,7 @@ async def chat_command(int: discord.Interaction, message: str):
             except Exception as e:
                 logger.exception(e)
                 await int.response.send_message(
-                    f"Failed to start chat {str(e)}", ephemeral=True
+                    f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
                 )
                 return
         
@@ -188,14 +188,14 @@ async def chat_command(int: discord.Interaction, message: str):
             except Exception as e:
                 logger.exception(e)
                 await int.response.send_message(
-                    f"Failed to start chat {str(e)}", ephemeral=True
+                    f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
                 )
                 return
 
     except Exception as e:
         logger.exception(e)
         await int.response.send_message(
-            f"Failed to start chat {str(e)}", ephemeral=True
+            f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
         )
 
 # /deny user:
@@ -274,7 +274,7 @@ async def deny_command(int: discord.Interaction, message: str):
         except Exception as e:
             logger.exception(e)
             await int.response.send_message(
-                f"Failed to start chat {str(e)}", ephemeral=True
+                f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
             )
             return
         
@@ -294,7 +294,7 @@ async def deny_command(int: discord.Interaction, message: str):
     except Exception as e:
         logger.exception(e)
         await int.response.send_message(
-            f"Failed to start chat {str(e)}", ephemeral=True
+            f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
         )
 
 # /allow user:
@@ -373,7 +373,7 @@ async def allow_command(int: discord.Interaction, message: str):
         except Exception as e:
             logger.exception(e)
             await int.response.send_message(
-                f"Failed to start chat {str(e)}", ephemeral=True
+                f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
             )
             return
         
@@ -393,7 +393,7 @@ async def allow_command(int: discord.Interaction, message: str):
     except Exception as e:
         logger.exception(e)
         await int.response.send_message(
-            f"Failed to start chat {str(e)}", ephemeral=True
+            f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
         )
 
 # /costs all costs:
@@ -445,7 +445,7 @@ async def allow_command(int: discord.Interaction):
         except Exception as e:
             logger.exception(e)
             await int.response.send_message(
-                f"Failed to start chat {str(e)}", ephemeral=True
+                f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
             )
             return
       
@@ -480,7 +480,7 @@ async def allow_command(int: discord.Interaction):
     except Exception as e:
         logger.exception(e)
         await int.response.send_message(
-            f"Failed to start chat {str(e)}", ephemeral=True
+            f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
         )
 
 # calls for each message
@@ -634,7 +634,7 @@ async def on_message(message: DiscordMessage):
             except Exception as e:
                 logger.exception(e)
                 await message.channel.send(
-                    f"Failed to start chat {str(e)}", ephemeral=True
+                    f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
                 )
                 return
             
