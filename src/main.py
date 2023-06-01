@@ -19,7 +19,8 @@ from src.utils import (
     discord_message_to_message,
 )
 from src import completion
-from src.completion import generate_completion_response, process_response
+from src.completion import generate_completion_response, process_response,generate_summary
+
 from src.moderation import (
     moderate_message,
     send_moderation_blocked_message,
@@ -34,6 +35,26 @@ from mysql.connector import Error
 import mysql.connector
 import MySQLdb
 from datetime import datetime
+
+import requests
+import time
+
+def check_network_availability():
+    url = 'https://www.google.com'
+    while True:
+        try:
+            response = requests.head(url, timeout=5)
+            if response.status_code == 200:
+                print("Network is available. Continuing...")
+                # Your code to execute if the network is available
+                break  # Exit the loop and continue with the rest of your code
+            else:
+                print("Unable to connect to Google. Retrying in 5 seconds...")
+        except requests.ConnectionError:
+            print("No network connection. Retrying in 5 seconds...")
+        time.sleep(5)  # Wait for 5 seconds before retrying
+
+check_network_availability()
 
 logging.basicConfig(
     format="[%(asctime)s] [%(filename)s:%(lineno)d] %(message)s", level=logging.INFO
@@ -61,6 +82,141 @@ async def on_ready():
         completion.MY_BOT_EXAMPLE_CONVOS.append(Conversation(messages=messages))
     await tree.sync()
 
+# /chat message:
+@tree.command(name="googlesearch", description="Create a new thread starting with a google search by GPT")
+@discord.app_commands.checks.has_permissions(send_messages=True)
+@discord.app_commands.checks.has_permissions(view_channel=True)
+@discord.app_commands.checks.bot_has_permissions(send_messages=True)
+@discord.app_commands.checks.bot_has_permissions(view_channel=True)
+@discord.app_commands.checks.bot_has_permissions(manage_threads=True)
+async def chat_command(int: discord.Interaction, message: str):
+    try:
+        # only support creating thread in text channel
+        if not isinstance(int.channel, discord.TextChannel):
+            return
+
+        # block servers not in allow list
+        if should_block(guild=int.guild):
+            return
+        
+        connection = MySQLdb.connect(
+            host= os.getenv("HOST"),
+            user=os.getenv("USERNAME2"),
+            password= os.getenv("PASSWORD"),
+            db= os.getenv("DATABASE"),
+            ssl=os.getenv("SSL_CERT")
+        )
+
+        mycursor = connection.cursor()
+        
+        sql = f"SELECT * FROM JaduBlockedUsers WHERE BlockedUserID = {int.user.id} AND IsBlocked = 1"
+
+        mycursor.execute(sql)
+        result = mycursor.fetchall()
+
+        if len(result) == 0:
+            user = int.user
+            logger.info(f"Chat command by {user} {message[:20]}")
+
+            try:
+                # moderate the message
+                flagged_str, blocked_str = moderate_message(message=message, user=user)
+                await send_moderation_blocked_message(
+                    guild=int.guild,
+                    user=user,
+                    blocked_str=blocked_str,
+                    message=message,
+                )
+                if len(blocked_str) > 0:
+                    # message was blocked
+                    await int.response.send_message(
+                        f"Your prompt has been blocked by moderation.\n{message}",
+                        ephemeral=True,
+                    )
+                    return
+
+                embed = discord.Embed(
+                    title='🤖💬 JaduGPT response will be sent on private thread!',
+                    description=f"{int.user.mention} be sure not to spam! ",
+                    color=discord.Color.green()
+                )
+
+                if len(flagged_str) > 0:
+                    # message was flagged
+                    embed.color = discord.Color.yellow()
+                    embed.title = "⚠️ This prompt was flagged by moderation."
+
+                await int.response.send_message(embed=embed)
+                response = await int.original_response()
+
+                await send_moderation_flagged_message(
+                    guild=int.guild,
+                    user=user,
+                    flagged_str=flagged_str,
+                    message=message,
+                    url=response.jump_url,
+                )
+            except Exception as e:
+                logger.exception(e)
+                await int.response.send_message(
+                    f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
+                )
+                return
+        
+            # create the thread
+            thread = await int.channel.create_thread(
+                name=f"GPT - {ACTIVATE_THREAD_PREFX} {user.name[:20]} - {message[:30]}",
+                slowmode_delay=1,
+                reason="gpt-bot",
+                auto_archive_duration=60,
+                invitable=True,
+                type=None
+            )
+            await thread.send(f"{user.mention}" + " started this conversation by saying "+ f'"{message}"')
+
+            embed = discord.Embed(
+                    color=discord.Color.green(),
+                    title=f"Be advised with instructions:",
+                    description=''
+                )
+            embed.add_field(name='⚠️ Be sure not to spam!', value='We do not save your questions but we do monitor user interactions and costs', inline=False)
+            embed.add_field(name='✅ Start new /chat:', value='Start a new /chat whenever you want to change the subject of your conversation', inline=False)
+            embed.add_field(name='👷 Ask for help:', value='You can ask for help from the team or from @thegen (the project dev)', inline=False)
+
+            await thread.send(embed=embed)
+
+            async with thread.typing():
+                # fetch completion
+                messages = [Message(user=user.name, text=message)]
+                response_data = await generate_summary(
+                    messages=messages, user=user
+                )
+                # send the result
+                await process_response(
+                    user=user, thread=thread, response_data=response_data
+                )
+        else:
+            try:
+                embed = discord.Embed(
+                    title='🤖💬 Seems like you have been blocked from using /chat command.',
+                    description=f"{int.user.mention} please contact moderators! ",
+                    color=discord.Color.green()
+                )
+
+                await int.response.send_message(embed=embed)
+
+            except Exception as e:
+                logger.exception(e)
+                await int.response.send_message(
+                    f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
+                )
+                return
+
+    except Exception as e:
+        logger.exception(e)
+        await int.response.send_message(
+            f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
+        )
 
 # /chat message:
 @tree.command(name="chat", description="Create a new thread for conversation")
@@ -602,6 +758,28 @@ async def on_message(message: DiscordMessage):
                 ]
                 channel_messages = [x for x in channel_messages if x is not None]
                 channel_messages.reverse()
+
+                print(thread.name)
+                if thread.name[0:3] == 'GPT4':
+                    # generate the response
+                    async with thread.typing():
+                        response_data = await generate_completion_response4(
+                            messages=channel_messages, user=message.author
+                        )
+
+                    if is_last_message_stale(
+                        interaction_message=message,
+                        last_message=thread.last_message,
+                        bot_id=client.user.id,
+                    ):
+                        # there is another message and its not from us, so ignore this response
+                        return
+
+                    # send response
+                    await process_response4(
+                        user=message.author, thread=thread, response_data=response_data
+                    )
+
 
                 # generate the response
                 async with thread.typing():
