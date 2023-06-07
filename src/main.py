@@ -83,7 +83,7 @@ async def on_ready():
     await tree.sync()
 
 # /chat message:
-@tree.command(name="googlesearch", description="Create a new thread starting with a google search by GPT")
+@tree.command(name="google", description="Create a new thread starting with a google search by GPT")
 @discord.app_commands.checks.has_permissions(send_messages=True)
 @discord.app_commands.checks.has_permissions(view_channel=True)
 @discord.app_commands.checks.bot_has_permissions(send_messages=True)
@@ -91,9 +91,14 @@ async def on_ready():
 @discord.app_commands.checks.bot_has_permissions(manage_threads=True)
 async def chat_command(int: discord.Interaction, message: str):
     try:
-        # only support creating thread in text channel
-        if not isinstance(int.channel, discord.TextChannel):
+        # # only support creating thread in text channel
+        # if not isinstance(int.channel, discord.TextChannel):
+        #     return
+        # ignore messages not in a thread
+                
+        if not isinstance(int.channel, discord.Thread):
             return
+        thread =  int.channel
 
         # block servers not in allow list
         if should_block(guild=int.guild):
@@ -114,91 +119,86 @@ async def chat_command(int: discord.Interaction, message: str):
         mycursor.execute(sql)
         result = mycursor.fetchall()
 
-        if len(result) == 0:
-            user = int.user
-            logger.info(f"Chat command by {user} {message[:20]}")
+        channel_messages = [
+                    discord_message_to_message(message)
+                    async for message in thread.history(limit=MAX_THREAD_MESSAGES)
+                ]
+        channel_messages = [x for x in channel_messages if x is not None]
+        channel_messages.reverse()
 
-            try:
-                # moderate the message
-                flagged_str, blocked_str = moderate_message(message=message, user=user)
-                await send_moderation_blocked_message(
-                    guild=int.guild,
-                    user=user,
-                    blocked_str=blocked_str,
-                    message=message,
-                )
-                if len(blocked_str) > 0:
-                    # message was blocked
+        google_messages_count = sum(message.text.startswith('/google') for message in channel_messages)
+        print(google_messages_count)
+
+        if google_messages_count < 2:
+            if len(result) == 0:
+                user = int.user
+                logger.info(f"Chat command by {user} {message[:20]}")
+
+                try:
+                    # moderate the message
+                    flagged_str, blocked_str = moderate_message(message=message, user=user)
+                    await send_moderation_blocked_message(
+                        guild=int.guild,
+                        user=user,
+                        blocked_str=blocked_str,
+                        message=message,
+                    )
+                    if len(blocked_str) > 0:
+                        # message was blocked
+                        await int.response.send_message(
+                            f"Your prompt has been blocked by moderation.\n{message}",
+                            ephemeral=True,
+                        )
+                        return
+
+                    await int.response.send_message(f'/google by {int.user.mention}')
+                    response = await int.original_response()
+
+                    await send_moderation_flagged_message(
+                        guild=int.guild,
+                        user=user,
+                        flagged_str=flagged_str,
+                        message=message,
+                        url=response.jump_url,
+                    )
+                    
+                except Exception as e:
+                    logger.exception(e)
                     await int.response.send_message(
-                        f"Your prompt has been blocked by moderation.\n{message}",
-                        ephemeral=True,
+                        f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
                     )
                     return
 
-                embed = discord.Embed(
-                    title='🤖💬 JaduGPT response will be sent on private thread!',
-                    description=f"{int.user.mention} be sure not to spam! ",
-                    color=discord.Color.green()
-                )
+                async with thread.typing():
+                    # fetch completion
+                    messages = [Message(user=user.name, text=message)]
+                    response_data = await generate_summary(
+                        messages=messages, user=user
+                    )
+                    # send the result
+                    await process_response(
+                        user=user, thread=thread, response_data=response_data
+                    )
+            else:
+                try:
+                    embed = discord.Embed(
+                        title='🤖💬 Seems like you have been blocked from using /chat command.',
+                        description=f"{int.user.mention} please contact moderators! ",
+                        color=discord.Color.green()
+                    )
 
-                if len(flagged_str) > 0:
-                    # message was flagged
-                    embed.color = discord.Color.yellow()
-                    embed.title = "⚠️ This prompt was flagged by moderation."
+                    await int.response.send_message(embed=embed)
 
-                await int.response.send_message(embed=embed)
-                response = await int.original_response()
-
-                await send_moderation_flagged_message(
-                    guild=int.guild,
-                    user=user,
-                    flagged_str=flagged_str,
-                    message=message,
-                    url=response.jump_url,
-                )
-            except Exception as e:
-                logger.exception(e)
-                await int.response.send_message(
-                    f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
-                )
-                return
-        
-            # create the thread
-            thread = await int.channel.create_thread(
-                name=f"GPT - {ACTIVATE_THREAD_PREFX} {user.name[:20]} - {message[:30]}",
-                slowmode_delay=1,
-                reason="gpt-bot",
-                auto_archive_duration=60,
-                invitable=True,
-                type=None
-            )
-            await thread.send(f"{user.mention}" + " started this conversation by saying "+ f'"{message}"')
-
-            embed = discord.Embed(
-                    color=discord.Color.green(),
-                    title=f"Be advised with instructions:",
-                    description=''
-                )
-            embed.add_field(name='⚠️ Be sure not to spam!', value='We do not save your questions but we do monitor user interactions and costs', inline=False)
-            embed.add_field(name='✅ Start new /chat:', value='Start a new /chat whenever you want to change the subject of your conversation', inline=False)
-            embed.add_field(name='👷 Ask for help:', value='You can ask for help from the team or from @thegen (the project dev)', inline=False)
-
-            await thread.send(embed=embed)
-
-            async with thread.typing():
-                # fetch completion
-                messages = [Message(user=user.name, text=message)]
-                response_data = await generate_summary(
-                    messages=messages, user=user
-                )
-                # send the result
-                await process_response(
-                    user=user, thread=thread, response_data=response_data
-                )
+                except Exception as e:
+                    logger.exception(e)
+                    await int.response.send_message(
+                        f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
+                    )
+                    return
         else:
             try:
                 embed = discord.Embed(
-                    title='🤖💬 Seems like you have been blocked from using /chat command.',
+                    title='Seems like you have reached the limit of /google command on this.',
                     description=f"{int.user.mention} please contact moderators! ",
                     color=discord.Color.green()
                 )
@@ -218,14 +218,15 @@ async def chat_command(int: discord.Interaction, message: str):
             f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
         )
 
-# /chat message:
-@tree.command(name="chat", description="Create a new thread for conversation")
+
+# /costs all costs:
+@tree.command(name="chat", description="create private thread for you to chat with JaduGPT")
 @discord.app_commands.checks.has_permissions(send_messages=True)
 @discord.app_commands.checks.has_permissions(view_channel=True)
 @discord.app_commands.checks.bot_has_permissions(send_messages=True)
 @discord.app_commands.checks.bot_has_permissions(view_channel=True)
 @discord.app_commands.checks.bot_has_permissions(manage_threads=True)
-async def chat_command(int: discord.Interaction, message: str):
+async def thread_command(int: discord.Interaction):
     try:
         # only support creating thread in text channel
         if not isinstance(int.channel, discord.TextChannel):
@@ -234,7 +235,7 @@ async def chat_command(int: discord.Interaction, message: str):
         # block servers not in allow list
         if should_block(guild=int.guild):
             return
-        
+                
         connection = MySQLdb.connect(
             host= os.getenv("HOST"),
             user=os.getenv("USERNAME2"),
@@ -252,107 +253,53 @@ async def chat_command(int: discord.Interaction, message: str):
 
         if len(result) == 0:
             user = int.user
-            logger.info(f"Chat command by {user} {message[:20]}")
 
             try:
-                # moderate the message
-                flagged_str, blocked_str = moderate_message(message=message, user=user)
-                await send_moderation_blocked_message(
-                    guild=int.guild,
-                    user=user,
-                    blocked_str=blocked_str,
-                    message=message,
-                )
-                if len(blocked_str) > 0:
-                    # message was blocked
-                    await int.response.send_message(
-                        f"Your prompt has been blocked by moderation.\n{message}",
-                        ephemeral=True,
-                    )
-                    return
-
+                
                 embed = discord.Embed(
                     title='🤖💬 JaduGPT response will be sent on private thread!',
                     description=f"{int.user.mention} be sure not to spam! ",
                     color=discord.Color.green()
-                )
-
-                if len(flagged_str) > 0:
-                    # message was flagged
-                    embed.color = discord.Color.yellow()
-                    embed.title = "⚠️ This prompt was flagged by moderation."
+                )           
 
                 await int.response.send_message(embed=embed)
-                response = await int.original_response()
-
-                await send_moderation_flagged_message(
-                    guild=int.guild,
-                    user=user,
-                    flagged_str=flagged_str,
-                    message=message,
-                    url=response.jump_url,
-                )
+            
             except Exception as e:
                 logger.exception(e)
                 await int.response.send_message(
                     f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
                 )
                 return
-        
-            # create the thread
-            thread = await int.channel.create_thread(
-                name=f"{ACTIVATE_THREAD_PREFX} {user.name[:20]} - {message[:30]}",
-                slowmode_delay=1,
-                reason="gpt-bot",
-                auto_archive_duration=60,
-                invitable=True,
-                type=None
-            )
-            await thread.send(f"{user.mention}" + " started this conversation by saying "+ f'"{message}"')
+      
+        # create the thread
+        thread = await int.channel.create_thread(
+            name=f"{ACTIVATE_THREAD_PREFX} {int.user.name[:20]}",
+            slowmode_delay=1,
+            reason="gpt-bot",
+            auto_archive_duration=60,
+            invitable=True,
+            type=None
+        )
 
-            embed = discord.Embed(
+        await thread.send(f"{int.user.mention}")
+
+        embed = discord.Embed(
                     color=discord.Color.green(),
                     title=f"Be advised with instructions:",
                     description=''
                 )
-            embed.add_field(name='⚠️ Be sure not to spam!', value='We do not save your questions but we do monitor user interactions and costs', inline=False)
-            embed.add_field(name='✅ Start new /chat:', value='Start a new /chat whenever you want to change the subject of your conversation', inline=False)
-            embed.add_field(name='👷 Ask for help:', value='You can ask for help from the team or from @thegen (the project dev)', inline=False)
+        embed.add_field(name='⚠️ Be sure not to spam!', value='We do not save your questions but we do monitor user interactions and costs', inline=False)
+        embed.add_field(name='✅ Start new /chat:', value='Start a new /chat whenever you want to change the subject of your conversation', inline=False)
+        embed.add_field(name='👷 Ask for help:', value='You can ask for help from the team or from @thegen (the project dev)', inline=False)
 
-            await thread.send(embed=embed)
-
-            async with thread.typing():
-                # fetch completion
-                messages = [Message(user=user.name, text=message)]
-                response_data = await generate_completion_response(
-                    messages=messages, user=user
-                )
-                # send the result
-                await process_response(
-                    user=user, thread=thread, response_data=response_data
-                )
-        else:
-            try:
-                embed = discord.Embed(
-                    title='🤖💬 Seems like you have been blocked from using /chat command.',
-                    description=f"{int.user.mention} please contact moderators! ",
-                    color=discord.Color.green()
-                )
-
-                await int.response.send_message(embed=embed)
-
-            except Exception as e:
-                logger.exception(e)
-                await int.response.send_message(
-                    f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
-                )
-                return
-
+        await thread.send(embed=embed)
+        
     except Exception as e:
         logger.exception(e)
         await int.response.send_message(
             f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
         )
+
 
 # /deny user:
 @tree.command(name="deny", description="Deny UserID from using JaduGPT")
@@ -364,7 +311,7 @@ async def chat_command(int: discord.Interaction, message: str):
 async def deny_command(int: discord.Interaction, message: str):
     try:
         # only support creating thread in text channel
-        if not isinstance(int.channel, discord.TextChannel):
+        if not isinstance(int.channel, discord.Thread):
             return
 
         # block servers not in allow list
@@ -389,44 +336,9 @@ async def deny_command(int: discord.Interaction, message: str):
         connection.close()
 
         try:
-            # moderate the message
-            flagged_str, blocked_str = moderate_message(message=message, user=int.user)
-            await send_moderation_blocked_message(
-                guild=int.guild,
-                user=int.user,
-                blocked_str=blocked_str,
-                message=message,
-            )
-            if len(blocked_str) > 0:
-                # message was blocked
-                await int.response.send_message(
-                    f"Your prompt has been blocked by moderation.\n{message}",
-                    ephemeral=True,
-                )
-                return
 
-            embed = discord.Embed(
-                title='🤖💬 JaduGPT response will be sent on private thread!',
-                description=f"{int.user.mention} be sure not to spam! ",
-                color=discord.Color.green()
-            )
-
-            if len(flagged_str) > 0:
-                # message was flagged
-                embed.color = discord.Color.yellow()
-                embed.title = "⚠️ This prompt was flagged by moderation."
-
-            await int.response.send_message(embed=embed)
-            response = await int.original_response()
-
-            await send_moderation_flagged_message(
-                guild=int.guild,
-                user=int.user,
-                flagged_str=flagged_str,
-                message=message,
-                url=response.jump_url,
-            )
-
+            await int.response.send_message(f'/deny by {int.user.mention}')
+            
         except Exception as e:
             logger.exception(e)
             await int.response.send_message(
@@ -435,15 +347,7 @@ async def deny_command(int: discord.Interaction, message: str):
             return
         
       
-        # create the thread
-        thread = await int.channel.create_thread(
-            name=f"{ACTIVATE_THREAD_PREFX} {int.user.name[:20]} - {message[:30]}",
-            slowmode_delay=1,
-            reason="gpt-bot",
-            auto_archive_duration=60,
-            invitable=True,
-            type=None
-        )
+        thread =  int.channel
 
         await thread.send(f"{int.user.mention}" + " blocked UserID "+ f'"{message}"')
 
@@ -463,7 +367,7 @@ async def deny_command(int: discord.Interaction, message: str):
 async def allow_command(int: discord.Interaction, message: str):
     try:
         # only support creating thread in text channel
-        if not isinstance(int.channel, discord.TextChannel):
+        if not isinstance(int.channel, discord.Thread):
             return
 
         # block servers not in allow list
@@ -488,44 +392,9 @@ async def allow_command(int: discord.Interaction, message: str):
         connection.close()
 
         try:
-            # moderate the message
-            flagged_str, blocked_str = moderate_message(message=message, user=int.user)
-            await send_moderation_blocked_message(
-                guild=int.guild,
-                user=int.user,
-                blocked_str=blocked_str,
-                message=message,
-            )
-            if len(blocked_str) > 0:
-                # message was blocked
-                await int.response.send_message(
-                    f"Your prompt has been blocked by moderation.\n{message}",
-                    ephemeral=True,
-                )
-                return
 
-            embed = discord.Embed(
-                title='🤖💬 JaduGPT response will be sent on private thread!',
-                description=f"{int.user.mention} be sure not to spam! ",
-                color=discord.Color.green()
-            )
-
-            if len(flagged_str) > 0:
-                # message was flagged
-                embed.color = discord.Color.yellow()
-                embed.title = "⚠️ This prompt was flagged by moderation."
-
-            await int.response.send_message(embed=embed)
-            response = await int.original_response()
-
-            await send_moderation_flagged_message(
-                guild=int.guild,
-                user=int.user,
-                flagged_str=flagged_str,
-                message=message,
-                url=response.jump_url,
-            )
-
+            await int.response.send_message(f'/allow by {int.user.mention}')
+            
         except Exception as e:
             logger.exception(e)
             await int.response.send_message(
@@ -534,15 +403,7 @@ async def allow_command(int: discord.Interaction, message: str):
             return
         
       
-        # create the thread
-        thread = await int.channel.create_thread(
-            name=f"{ACTIVATE_THREAD_PREFX} {int.user.name[:20]} - {message[:30]}",
-            slowmode_delay=1,
-            reason="gpt-bot",
-            auto_archive_duration=60,
-            invitable=True,
-            type=None
-        )
+        thread =  int.channel
 
         await thread.send(f"{int.user.mention}" + " unblocked UserID "+ f'"{message}"')
 
@@ -562,7 +423,7 @@ async def allow_command(int: discord.Interaction, message: str):
 async def allow_command(int: discord.Interaction):
     try:
         # only support creating thread in text channel
-        if not isinstance(int.channel, discord.TextChannel):
+        if not isinstance(int.channel, discord.Thread):
             return
 
         # block servers not in allow list
@@ -587,16 +448,8 @@ async def allow_command(int: discord.Interaction):
         connection.close()
 
         try:
-            
-            embed = discord.Embed(
-                title='🤖💬 JaduGPT response will be sent on private thread!',
-                description=f"{int.user.mention} be sure not to spam! ",
-                color=discord.Color.green()
-            )
 
-            
-
-            await int.response.send_message(embed=embed)
+            await int.response.send_message(f'/costs by {int.user.mention}')
             
         except Exception as e:
             logger.exception(e)
@@ -605,25 +458,14 @@ async def allow_command(int: discord.Interaction):
             )
             return
       
-        # create the thread
-        thread = await int.channel.create_thread(
-            name=f"{ACTIVATE_THREAD_PREFX} {int.user.name[:20]} - All Costs",
-            slowmode_delay=1,
-            reason="gpt-bot",
-            auto_archive_duration=60,
-            invitable=True,
-            type=None
-        )
+        thread =  int.channel
 
         embed = discord.Embed(
                     color=discord.Color.green(),
                     title=f"These are the Costs for JaduGPT with Breakdown",
                     description=''
-                )
-        
+                )       
 
-        await thread.send(f"{int.user.mention}")
-        
         for item in result:
             name_, userID, costs = item
             if str(name_).startswith('Grand Total'):
@@ -661,7 +503,7 @@ async def on_message(message: DiscordMessage):
         connection.close()
 
         if len(result) == 0:
-            if message.content[0:2] != '<@':
+            if message.content[0:1] != '<@':
                 # block servers not in allow list
                 if should_block(guild=message.guild):
                     return
