@@ -37,7 +37,7 @@ from mysql.connector import Error
 import mysql.connector
 import MySQLdb
 from datetime import datetime
-
+import json
 import requests
 import time
 
@@ -257,6 +257,19 @@ async def thread_command(int: discord.Interaction):
 
         mycursor.execute(sql)
         result2 = mycursor.fetchall()
+        # Fetch column names from cursor.description
+        column_names = [column[0] for column in mycursor.description]
+
+        # Convert the results into a list of dictionaries
+        data = [dict(zip(column_names, row)) for row in result2]
+
+        # Convert the list of dictionaries into JSON
+        json_data = json.dumps(data)
+
+        # Now json_data contains the result in JSON format
+        print(json_data)
+        print(result2)
+        print(type(result2))
         
         df = pd.DataFrame(result2)
         print(df)
