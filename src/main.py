@@ -253,30 +253,30 @@ async def thread_command(int: discord.Interaction):
         mycursor.execute(sql)
         result = mycursor.fetchall()
 
-        sql = f"SELECT * FROM JaduThreads WHERE UserID = {int.user.id}"
+        sql2 = f"SELECT * FROM JaduThreads WHERE UserID = {int.user.id}"
 
-        mycursor.execute(sql)
+        mycursor.execute(sql2)
         result2 = mycursor.fetchall()
         # Fetch column names from cursor.description
-        column_names = [column[0] for column in mycursor.description]
+        # column_names = [column[0] for column in mycursor.description]
 
         # Convert the results into a list of dictionaries
-        data = [dict(zip(column_names, row)) for row in result2]
+        # data = [dict(zip(column_names, row)) for row in result2]
 
         # Convert the list of dictionaries into JSON
-        json_data = json.dumps(data)
+        # json_data = json.dumps(data)
 
         # Now json_data contains the result in JSON format
-        print(json_data)
-        print(result2)
-        print(type(result2))
+        # print(json_data)
+        # print(result2)
+        # print(type(result2))
         
-        df = pd.DataFrame(result2)
-        print(df)
-        df['Date'] = pd.to_datetime(df['Date'])
-        now = datetime.now()
-        ten_minutes_ago = now - timedelta(minutes=10)
-        filtered_df = df[df['Date'] > ten_minutes_ago]
+        # df = pd.DataFrame(result2)
+        # print(df)
+        # df['Date'] = pd.to_datetime(df['Date'])
+        # now = datetime.now()
+        # ten_minutes_ago = now - timedelta(minutes=10)
+        # filtered_df = df[df['Date'] > ten_minutes_ago]
 
         
         if len(result) == 0:
@@ -318,33 +318,48 @@ async def thread_command(int: discord.Interaction):
         connection.commit()
         connection.close()
 
-        if len(filtered_df) <= 2:
+        embed = discord.Embed(
+                        color=discord.Color.green(),
+                        title=f"Be advised with instructions:",
+                        description=''
+                    )
+            
+        embed.add_field(name='⚠️ Be sure not to spam!', value='We do not save your questions but we do monitor user interactions and costs', inline=False)
+        embed.add_field(name='✅ Start new /chat:', value='Whenever you want to change the subject of your conversation, be sure to start a new thread with /chat at the <#1105175304395309066>', inline=False)
+        embed.add_field(name='🔎 Use /google:', value='You can use /google to make the GPT do a Google Search to update its knowledge base according to your message. This feature is limited in 2 / thread.', inline=False)
+        embed.add_field(name='👷 Ask for help:', value='You can ask for help from the team or from @thegen (the project dev)', inline=False)
+        #embed.add_field(name='🚫 Our Restrictions:', value='We allow users to create up to 2 new threads every 10 minutes', inline=False)
+
+        await thread.send(embed=embed)
+
+
+        # if len(filtered_df) <= 2:
            
-            embed = discord.Embed(
-                        color=discord.Color.green(),
-                        title=f"Be advised with instructions:",
-                        description=''
-                    )
+        #     embed = discord.Embed(
+        #                 color=discord.Color.green(),
+        #                 title=f"Be advised with instructions:",
+        #                 description=''
+        #             )
             
-            embed.add_field(name='⚠️ Be sure not to spam!', value='We do not save your questions but we do monitor user interactions and costs', inline=False)
-            embed.add_field(name='✅ Start new /chat:', value='Whenever you want to change the subject of your conversation, be sure to start a new thread with /chat at the <#1105175304395309066>', inline=False)
-            embed.add_field(name='🔎 Use /google:', value='You can use /google to make the GPT do a Google Search to update its knowledge base according to your message. This feature is limited in 2 / thread.', inline=False)
-            embed.add_field(name='👷 Ask for help:', value='You can ask for help from the team or from @thegen (the project dev)', inline=False)
-            embed.add_field(name='🚫 Our Restrictions:', value='We allow users to create up to 2 new threads every 10 minutes', inline=False)
+        #     embed.add_field(name='⚠️ Be sure not to spam!', value='We do not save your questions but we do monitor user interactions and costs', inline=False)
+        #     embed.add_field(name='✅ Start new /chat:', value='Whenever you want to change the subject of your conversation, be sure to start a new thread with /chat at the <#1105175304395309066>', inline=False)
+        #     embed.add_field(name='🔎 Use /google:', value='You can use /google to make the GPT do a Google Search to update its knowledge base according to your message. This feature is limited in 2 / thread.', inline=False)
+        #     embed.add_field(name='👷 Ask for help:', value='You can ask for help from the team or from @thegen (the project dev)', inline=False)
+        #     embed.add_field(name='🚫 Our Restrictions:', value='We allow users to create up to 2 new threads every 10 minutes', inline=False)
 
-            await thread.send(embed=embed)
+        #     await thread.send(embed=embed)
 
-        else:
-            embed = discord.Embed(
-                        color=discord.Color.green(),
-                        title=f"Be advised with instructions:",
-                        description=''
-                    )
-            embed.add_field(name='🚫 Our Restrictions:', value='We allow users to create up to 2 new threads for every 10 minutes', inline=False)
-            embed.add_field(name='⚠️ Seems like you reached the limit!', value='We do not save your questions but we do monitor user interactions and costs.', inline=False)
-            embed.add_field(name='✅ Please wait to start a new /chat:', value='It seems that you have reaced our limits for new threads. Please wait 10 more minutes and try /chat again at <#1105175304395309066>', inline=False)
+        # else:
+        #     embed = discord.Embed(
+        #                 color=discord.Color.green(),
+        #                 title=f"Be advised with instructions:",
+        #                 description=''
+        #             )
+        #     embed.add_field(name='🚫 Our Restrictions:', value='We allow users to create up to 2 new threads for every 10 minutes', inline=False)
+        #     embed.add_field(name='⚠️ Seems like you reached the limit!', value='We do not save your questions but we do monitor user interactions and costs.', inline=False)
+        #     embed.add_field(name='✅ Please wait to start a new /chat:', value='It seems that you have reaced our limits for new threads. Please wait 10 more minutes and try /chat again at <#1105175304395309066>', inline=False)
             
-            await thread.send(embed=embed)
+        #     await thread.send(embed=embed)
 
         
     except Exception as e:
