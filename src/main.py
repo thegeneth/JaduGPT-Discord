@@ -259,6 +259,7 @@ async def thread_command(int: discord.Interaction):
         result2 = mycursor.fetchall()
         
         df = pd.DataFrame(result2)
+        print(df)
         df['Date'] = pd.to_datetime(df['Date'])
         now = datetime.now()
         ten_minutes_ago = now - timedelta(minutes=10)
