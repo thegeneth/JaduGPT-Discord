@@ -257,110 +257,86 @@ async def thread_command(int: discord.Interaction):
 
         mycursor.execute(sql2)
         result2 = mycursor.fetchall()
-        # Fetch column names from cursor.description
-        # column_names = [column[0] for column in mycursor.description]
+        print(result2)
 
-        # Convert the results into a list of dictionaries
-        # data = [dict(zip(column_names, row)) for row in result2]
+        def count_elements_less_than_10_minutes(tuple_list):
+            current_time = datetime.now()
+            count = 0
 
-        # Convert the list of dictionaries into JSON
-        # json_data = json.dumps(data)
+            for element in tuple_list:
+                timestamp = datetime.strptime(element[0], '%Y-%m-%d %H:%M:%S.%f')
+                print(timestamp)
+                print(type(timestamp))
+                time_difference = current_time - timestamp
 
-        # Now json_data contains the result in JSON format
-        # print(json_data)
-        # print(result2)
-        # print(type(result2))
+                if time_difference.total_seconds() / 60 <= 10:
+                    count += 1
+
+            return count
         
-        # df = pd.DataFrame(result2)
-        # print(df)
-        # df['Date'] = pd.to_datetime(df['Date'])
-        # now = datetime.now()
-        # ten_minutes_ago = now - timedelta(minutes=10)
-        # filtered_df = df[df['Date'] > ten_minutes_ago]
-
+        previous_10min_threads = count_elements_less_than_10_minutes(result2)
         
-        if len(result) == 0:
-            user = int.user
+        if previous_10min_threads <= 1:
+            if len(result) == 0:
+                user = int.user
 
-            try:
-                
-                embed = discord.Embed(
-                    title='🤖💬 JaduGPT response will be sent on private thread!',
-                    description=f"{int.user.mention} be sure not to spam! ",
-                    color=discord.Color.green()
-                )           
+                try:
+                    
+                    embed = discord.Embed(
+                        title='🤖💬 JaduGPT response will be sent on private thread!',
+                        description=f"{int.user.mention} be sure not to spam! ",
+                        color=discord.Color.green()
+                    )           
 
-                await int.response.send_message(embed=embed)
-            
-            except Exception as e:
-                logger.exception(e)
-                await int.response.send_message(
-                    f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
-                )
-                return
+                    await int.response.send_message(embed=embed)
 
-        # create the thread
-        thread = await int.channel.create_thread(
-            name=f"{ACTIVATE_THREAD_PREFX} {int.user.name[:20]}",
-            slowmode_delay=1,
-            reason="gpt-bot",
-            auto_archive_duration=60,
-            invitable=True,
-            type=None
-        )
-
-        await thread.send(f"{int.user.mention}")
-
-        query = "INSERT INTO JaduThreads (Date, UserID) VALUES  (%s, %s)"
-    
-        val = ({str(datetime.now())}, {str(int.user.id)})
-        mycursor.execute(query, val)
-        connection.commit()
-        connection.close()
-
-        embed = discord.Embed(
-                        color=discord.Color.green(),
-                        title=f"Be advised with instructions:",
-                        description=''
+                    # create the thread
+                    thread = await int.channel.create_thread(
+                        name=f"{ACTIVATE_THREAD_PREFX} {int.user.name[:20]}",
+                        slowmode_delay=1,
+                        reason="gpt-bot",
+                        auto_archive_duration=60,
+                        invitable=True,
+                        type=None
                     )
-            
-        embed.add_field(name='⚠️ Be sure not to spam!', value='We do not save your questions but we do monitor user interactions and costs', inline=False)
-        embed.add_field(name='✅ Start new /chat:', value='Whenever you want to change the subject of your conversation, be sure to start a new thread with /chat at the <#1105175304395309066>', inline=False)
-        embed.add_field(name='🔎 Use /google:', value='You can use /google to make the GPT do a Google Search to update its knowledge base according to your message. This feature is limited in 2 / thread.', inline=False)
-        embed.add_field(name='👷 Ask for help:', value='You can ask for help from the team or from @thegen (the project dev)', inline=False)
-        #embed.add_field(name='🚫 Our Restrictions:', value='We allow users to create up to 2 new threads every 10 minutes', inline=False)
 
-        await thread.send(embed=embed)
+                    await thread.send(f"{int.user.mention}")
 
+                    query = "INSERT INTO JaduThreads (Date, UserID) VALUES  (%s, %s)"
+                
+                    val = ({str(datetime.now())}, {str(int.user.id)})
+                    mycursor.execute(query, val)
+                    connection.commit()
+                    connection.close()
 
-        # if len(filtered_df) <= 2:
-           
-        #     embed = discord.Embed(
-        #                 color=discord.Color.green(),
-        #                 title=f"Be advised with instructions:",
-        #                 description=''
-        #             )
-            
-        #     embed.add_field(name='⚠️ Be sure not to spam!', value='We do not save your questions but we do monitor user interactions and costs', inline=False)
-        #     embed.add_field(name='✅ Start new /chat:', value='Whenever you want to change the subject of your conversation, be sure to start a new thread with /chat at the <#1105175304395309066>', inline=False)
-        #     embed.add_field(name='🔎 Use /google:', value='You can use /google to make the GPT do a Google Search to update its knowledge base according to your message. This feature is limited in 2 / thread.', inline=False)
-        #     embed.add_field(name='👷 Ask for help:', value='You can ask for help from the team or from @thegen (the project dev)', inline=False)
-        #     embed.add_field(name='🚫 Our Restrictions:', value='We allow users to create up to 2 new threads every 10 minutes', inline=False)
+                    embed = discord.Embed(
+                                    color=discord.Color.green(),
+                                    title=f"Be advised with instructions:",
+                                    description=''
+                                )
+                        
+                    embed.add_field(name='⚠️ Be sure not to spam!', value='We do not save your questions but we do monitor user interactions and costs', inline=False)
+                    embed.add_field(name='✅ Start new /chat:', value='Whenever you want to change the subject of your conversation, be sure to start a new thread with /chat at the <#1105175304395309066>', inline=False)
+                    embed.add_field(name='🔎 Use /google:', value='You can use /google to make the GPT do a Google Search to update its knowledge base according to your message. This feature is limited in 2 / thread.', inline=False)
+                    embed.add_field(name='👷 Ask for help:', value='You can ask for help from the team or from @thegen (the project dev)', inline=False)
+                    embed.add_field(name='🚫 Our Restrictions:', value='We allow users to create up to 2 new threads every 10 minutes', inline=False)
 
-        #     await thread.send(embed=embed)
+                    await thread.send(embed=embed)
+                
+                except Exception as e:
+                    logger.exception(e)
+                    await int.response.send_message(
+                        f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
+                    )
+                    return
+        else:
+            embed = discord.Embed(
+                        title='🚫⚠️Limit reached⚠️🚫',
+                        description=f"{int.user.mention} Seems like you reached the limit of new threads. Please wait 10 minutes and try /chat again.",
+                        color=discord.Color.red()
+                    )           
 
-        # else:
-        #     embed = discord.Embed(
-        #                 color=discord.Color.green(),
-        #                 title=f"Be advised with instructions:",
-        #                 description=''
-        #             )
-        #     embed.add_field(name='🚫 Our Restrictions:', value='We allow users to create up to 2 new threads for every 10 minutes', inline=False)
-        #     embed.add_field(name='⚠️ Seems like you reached the limit!', value='We do not save your questions but we do monitor user interactions and costs.', inline=False)
-        #     embed.add_field(name='✅ Please wait to start a new /chat:', value='It seems that you have reaced our limits for new threads. Please wait 10 more minutes and try /chat again at <#1105175304395309066>', inline=False)
-            
-        #     await thread.send(embed=embed)
-
+            await int.response.send_message(embed=embed)
         
     except Exception as e:
         logger.exception(e)
