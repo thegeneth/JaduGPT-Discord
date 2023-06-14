@@ -433,7 +433,7 @@ async def allow_command(int: discord.Interaction, message: str):
         val = ({str(message)})
         mycursor.execute(sql, val)
         connection.commit()
-        connection.close()
+        
 
         sql2 = f"SELECT * FROM JaduThreads WHERE UserID = {str(message)}"
 
