@@ -453,10 +453,10 @@ async def allow_command(int: discord.Interaction, message: str):
         most_recent_datetime  = get_most_recent_datetime(result2)
 
 
-        sql = "UPDATE JaduThreads SET allowed = allow WHERE Date = %s AND UserID = %s"
+        sql3 = "UPDATE JaduThreads SET allowed = allow WHERE Date = %s AND UserID = %s"
         
         val = ({str(most_recent_datetime)}, {str(message)})
-        mycursor.execute(sql, val)
+        mycursor.execute(sql3, val)
         connection.commit()
         connection.close()
 
