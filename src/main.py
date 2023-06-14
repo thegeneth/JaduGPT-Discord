@@ -257,14 +257,13 @@ async def thread_command(int: discord.Interaction):
 
         mycursor.execute(sql2)
         result2 = mycursor.fetchall()
-        print(result2)
 
         def count_elements_less_than_10_minutes(tuple_list):
-            current_time = datetime.datetime.now()
+            current_time = datetime.now()
             count = 0
 
             for element in tuple_list:
-                timestamp = datetime.datetime.strptime(element[0], '%Y-%m-%d %H:%M:%S.%f')
+                timestamp = datetime.strptime(element[0], '%Y-%m-%d %H:%M:%S.%f')
                 time_difference = current_time - timestamp
 
                 if time_difference.total_seconds() / 60 <= 10:
@@ -445,7 +444,7 @@ async def allow_command(int: discord.Interaction, message: str):
             most_recent_datetime = None
 
             for element in tuple_list:
-                timestamp = datetime.datetime.strptime(element[0], '%Y-%m-%d %H:%M:%S.%f')
+                timestamp = datetime.strptime(element[0], '%Y-%m-%d %H:%M:%S.%f')
                 if most_recent_datetime is None or timestamp > most_recent_datetime:
                     most_recent_datetime = timestamp
 
@@ -672,27 +671,26 @@ async def on_message(message: DiscordMessage):
                 channel_messages = [x for x in channel_messages if x is not None]
                 channel_messages.reverse()
 
-                print(thread.name)
-                if thread.name[0:3] == 'GPT4':
-                    # generate the response
-                    async with thread.typing():
-                        response_data = await generate_completion_response4(
-                            messages=channel_messages, user=message.author
-                        )
+                # print(thread.name)
+                # if thread.name[0:3] == 'GPT4':
+                #     # generate the response
+                #     async with thread.typing():
+                #         response_data = await generate_completion_response4(
+                #             messages=channel_messages, user=message.author
+                #         )
 
-                    if is_last_message_stale(
-                        interaction_message=message,
-                        last_message=thread.last_message,
-                        bot_id=client.user.id,
-                    ):
-                        # there is another message and its not from us, so ignore this response
-                        return
+                #     if is_last_message_stale(
+                #         interaction_message=message,
+                #         last_message=thread.last_message,
+                #         bot_id=client.user.id,
+                #     ):
+                #         # there is another message and its not from us, so ignore this response
+                #         return
 
-                    # send response
-                    await process_response4(
-                        user=message.author, thread=thread, response_data=response_data
-                    )
-
+                #     # send response
+                #     await process_response4(
+                #         user=message.author, thread=thread, response_data=response_data
+                #     )
 
                 # generate the response
                 async with thread.typing():

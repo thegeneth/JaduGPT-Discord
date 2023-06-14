@@ -83,7 +83,7 @@ def make_google_search(question:str):
         text = text.replace("\xa0", "")
         text = text.replace("  ", "")
 
-        cost = round(num_tokens_from_string(text+str(question))*1.1)/1000*0.002
+        cost = round(num_tokens_from_string(text+str(question))*1.1)/1000*0.004
         GPTGoogleCosts.append(cost)
         textList.append(text[:4000])
     

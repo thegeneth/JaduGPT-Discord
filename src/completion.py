@@ -119,7 +119,7 @@ async def generate_summary(
             text = text.replace("\xa0", "")
             text = text.replace("  ", "")
 
-            cost = round(num_tokens_from_string(text+str(question))*1.1)/1000*0.002
+            cost = round(num_tokens_from_string(text+str(question))*1.1)/1000*0.004
             GPTGoogleCosts.append(cost)
             textList.append(text[:4000])
 
@@ -148,7 +148,7 @@ async def generate_summary(
 
         reply = response.choices[0]["message"]["content"]
 
-        costs = sum(GPTGoogleCosts)+0.01
+        costs = sum(GPTGoogleCosts)+0.015
         
         connection = MySQLdb.connect(
             host= os.getenv("HOST"),
@@ -259,7 +259,7 @@ async def generate_completion_response(
 
         tokenSum = round(sum(token_list)*1.1)
 
-        cost = tokenSum/1000*0.002
+        cost = tokenSum/1000*0.004
 
         sql = "INSERT INTO JaduGPT (User, UserID, Cost, Datetime) VALUES (%s, %s,%s, %s)"
         val = (str(user),str(user.id), str(cost), str(datetime.now()))
