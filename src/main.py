@@ -260,17 +260,18 @@ async def thread_command(int: discord.Interaction):
         print(result2)
 
         def count_elements_less_than_10_minutes(tuple_list):
-            current_time = datetime.now()
+            current_time = datetime.datetime.now()
             count = 0
 
             for element in tuple_list:
-                timestamp = datetime.strptime(element[0], '%Y-%m-%d %H:%M:%S.%f')
-                print(timestamp)
-                print(type(timestamp))
+                timestamp = datetime.datetime.strptime(element[0], '%Y-%m-%d %H:%M:%S.%f')
                 time_difference = current_time - timestamp
 
                 if time_difference.total_seconds() / 60 <= 10:
                     count += 1
+
+                if element[2] == 'allow' and time_difference.total_seconds() / 60 <= 10:
+                    return 0
 
             return count
         
@@ -434,6 +435,32 @@ async def allow_command(int: discord.Interaction, message: str):
         mycursor.execute(sql, val)
         connection.commit()
         connection.close()
+
+        sql2 = f"SELECT * FROM JaduThreads WHERE UserID = {str(message)}"
+
+        mycursor.execute(sql2)
+        result2 = mycursor.fetchall()
+
+        def get_most_recent_datetime(tuple_list):
+            most_recent_datetime = None
+
+            for element in tuple_list:
+                timestamp = datetime.datetime.strptime(element[0], '%Y-%m-%d %H:%M:%S.%f')
+                if most_recent_datetime is None or timestamp > most_recent_datetime:
+                    most_recent_datetime = timestamp
+
+            return most_recent_datetime
+        
+        most_recent_datetime  = get_most_recent_datetime(result2)
+
+
+        sql = "UPDATE JaduThreads SET allowed = allow WHERE Date = %s AND UserID = %s"
+        
+        val = ({str(most_recent_datetime)}, {str(message)})
+        mycursor.execute(sql, val)
+        connection.commit()
+        connection.close()
+
 
         try:
 
