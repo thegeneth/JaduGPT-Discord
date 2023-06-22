@@ -33,8 +33,7 @@ from datetime import datetime, timedelta
 import tiktoken
 import os
 from dotenv import load_dotenv
-from mysql.connector import Error
-import mysql.connector
+
 import MySQLdb
 from datetime import datetime
 import json
