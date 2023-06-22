@@ -24,12 +24,9 @@ from datetime import datetime
 
 import requests
 from bs4 import BeautifulSoup
-
-
+import time
 
 load_dotenv()
-
-
 
 encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
 
@@ -41,7 +38,6 @@ def num_tokens_from_string(string: str) -> int:
 
 MY_BOT_NAME = BOT_NAME
 MY_BOT_EXAMPLE_CONVOS = EXAMPLE_CONVOS
-
 
 class CompletionResult(Enum):
     OK = 0
@@ -102,25 +98,28 @@ async def generate_summary(
             link = search_item.get("link")
                     
             url = link
-            response = requests.get(url)
+            start_time = time.time()
 
-            soup = BeautifulSoup(response.content, 'html.parser')
+            response = requests.get(url, timeout=5)
 
-            text = soup.get_text()
-            
-            text = text.replace("/n", "")
-            text = text.replace("\n", "")
-            text = text.replace("\\n", "")
-            text = text.replace("//n", "")
-            text = text.replace("//", "")
-            text = text.replace("\t", "")
-            text = text.replace("\t3", "")
-            text = text.replace("\xa0", "")
-            text = text.replace("  ", "")
+            if time.time() - start_time < 5:
+                soup = BeautifulSoup(response.content, 'html.parser')
+                text = soup.get_text()
+                text = text.replace("/n", "")
+                text = text.replace("\n", "")
+                text = text.replace("\\n", "")
+                text = text.replace("//n", "")
+                text = text.replace("//", "")
+                text = text.replace("\t", "")
+                text = text.replace("\t3", "")
+                text = text.replace("\xa0", "")
+                text = text.replace("  ", "")
 
-            cost = round(num_tokens_from_string(text+str(question))*1.1)/1000*0.004
-            GPTGoogleCosts.append(cost)
-            textList.append(text[:4000])
+                cost = round(num_tokens_from_string(text+str(question))*1.1)/1000*0.004
+                GPTGoogleCosts.append(cost)
+                textList.append(text[:4000])
+            else:
+                print(f"Skipping {link} as it took too long to get the data")
 
         for prompt in textList:
             message_objects.append({"role": 'system', "content": f'{prompt}'})
