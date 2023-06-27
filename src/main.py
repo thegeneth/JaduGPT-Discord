@@ -574,7 +574,7 @@ async def on_message(message: DiscordMessage):
         if len(result) == 0:
             if str(message.content[0:2]) != '<@':
                 if str(message.content[0:1]) != '/':
-                    print(message.content[0:1])
+                    
                     # block servers not in allow list
                     if should_block(guild=message.guild):
                         return
