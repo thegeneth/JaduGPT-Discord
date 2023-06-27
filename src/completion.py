@@ -30,6 +30,29 @@ load_dotenv()
 
 encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
 
+def simple_token_counter(text):
+    token_count = 0
+    for word in text.split():
+        # Very simplified: count every character or punctuation as a separate token
+        token_count += len(word)
+    return token_count
+
+def limit_tokens(strings, max_tokens):
+    total_tokens = 0
+    limited_strings = []
+    for string in strings:
+        tokens_in_string = simple_token_counter(string)
+        if total_tokens + tokens_in_string > max_tokens:
+            break
+        total_tokens += tokens_in_string
+        limited_strings.append(string)
+    return limited_strings
+
+def limit_string_tokens(string, max_tokens):
+    if len(string) > max_tokens:
+        string = string[:max_tokens]
+    return string
+
 def num_tokens_from_string(string: str) -> int:
     """Returns the number of tokens in a text string."""
     encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
@@ -93,7 +116,7 @@ async def generate_summary(
 
         GPTGoogleCosts = []
         textList = []
-        for i, search_item in enumerate(search_items[:3], start=1):
+        for i, search_item in enumerate(search_items, start=1):
             
             link = search_item.get("link")
                     
@@ -117,11 +140,13 @@ async def generate_summary(
 
                 cost = round(num_tokens_from_string(text+str(question))*1.1)/1000*0.004
                 GPTGoogleCosts.append(cost)
-                textList.append(text[:4000])
+                textList.append(limit_string_tokens(text,1300))
             else:
                 print(f"Skipping {link} as it took too long to get the data")
 
-        for prompt in textList:
+        limited_strings = limit_tokens(textList, 4000)
+
+        for prompt in limited_strings:
             message_objects.append({"role": 'system', "content": f'{prompt}'})
 
         token_list = []
