@@ -172,8 +172,7 @@ async def generate_summary(
         reply = response.choices[0]["message"]["content"]
 
         costs = sum(GPTGoogleCosts)+0.015
-        print(costs)
-        
+                
         connection = MySQLdb.connect(
             host= os.getenv("HOST"),
             user=os.getenv("USERNAME2"),

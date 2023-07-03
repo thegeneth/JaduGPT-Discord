@@ -128,7 +128,6 @@ async def chat_command(int: discord.Interaction, message: str):
         channel_messages.reverse()
 
         google_messages_count = sum(message.text.startswith('/google') for message in channel_messages)
-        print(google_messages_count)
 
         if google_messages_count < 2:
             if len(result) == 0:
