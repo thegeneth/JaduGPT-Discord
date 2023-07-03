@@ -138,13 +138,13 @@ async def generate_summary(
                 text = text.replace("\xa0", "")
                 text = text.replace("  ", "")
 
-                cost = round(num_tokens_from_string(text+str(question))*1.1)/1000*0.004
+                cost = round(num_tokens_from_string(limit_string_tokens(text,1000)+str(question))*1.1)/1000*0.004
                 GPTGoogleCosts.append(cost)
-                textList.append(limit_string_tokens(text,1300))
+                textList.append(limit_string_tokens(text,1000))
             else:
                 print(f"Skipping {link} as it took too long to get the data")
 
-        limited_strings = limit_tokens(textList, 4000)
+        limited_strings = limit_tokens(textList, 1500)
 
         for prompt in limited_strings:
             message_objects.append({"role": 'system', "content": f'{prompt}'})
@@ -172,6 +172,7 @@ async def generate_summary(
         reply = response.choices[0]["message"]["content"]
 
         costs = sum(GPTGoogleCosts)+0.015
+        print(costs)
         
         connection = MySQLdb.connect(
             host= os.getenv("HOST"),
