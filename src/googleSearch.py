@@ -8,11 +8,11 @@ from datetime import datetime
 import openai
 load_dotenv()
 
-encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+encoding = tiktoken.encoding_for_model("gpt-4")
 
 def num_tokens_from_string(string: str) -> int:
     """Returns the number of tokens in a text string."""
-    encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+    encoding = tiktoken.encoding_for_model("gpt-4")
     num_tokens = len(encoding.encode(string))
     return num_tokens
 
@@ -25,7 +25,7 @@ def getGPTAnswer(systemPrompts:list, question:str):
             message_objects.append({"role": 'system', "content": f'{prompt}'})
                 
         response = openai.ChatCompletion.create(
-            model = 'gpt-3.5-turbo',
+            model = 'gpt-4',
             temperature=0,
             messages=message_objects
         )
@@ -75,7 +75,7 @@ def make_google_search(question:str):
             text = text.replace("\xa0", "")
             text = text.replace("  ", "")
 
-            cost = round(num_tokens_from_string(text+str(question))*1.1)/1000*0.004
+            cost = round(num_tokens_from_string(text+str(question))*1.1)/1000*0.06
             GPTGoogleCosts.append(cost)
             textList.append(text[:4000])
         else:

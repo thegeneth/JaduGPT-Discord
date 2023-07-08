@@ -25,10 +25,11 @@ from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
 import time
+from requests.exceptions import Timeout
 
 load_dotenv()
 
-encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+encoding = tiktoken.encoding_for_model("gpt-4")
 
 def simple_token_counter(text):
     token_count = 0
@@ -55,7 +56,7 @@ def limit_string_tokens(string, max_tokens):
 
 def num_tokens_from_string(string: str) -> int:
     """Returns the number of tokens in a text string."""
-    encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+    encoding = tiktoken.encoding_for_model("gpt-4")
     num_tokens = len(encoding.encode(string))
     return num_tokens
 
@@ -122,27 +123,36 @@ async def generate_summary(
                     
             url = link
             start_time = time.time()
+            try:
+                response = requests.get(url, timeout=7)
 
-            response = requests.get(url, timeout=5)
+                if time.time() - start_time < 7:
+                    soup = BeautifulSoup(response.content, 'html.parser')
+                    text = soup.get_text()
+                    text = text.replace("/n", "")
+                    text = text.replace("\n", "")
+                    text = text.replace("\\n", "")
+                    text = text.replace("//n", "")
+                    text = text.replace("//", "")
+                    text = text.replace("\t", "")
+                    text = text.replace("\t3", "")
+                    text = text.replace("\xa0", "")
+                    text = text.replace("  ", "")
 
-            if time.time() - start_time < 5:
-                soup = BeautifulSoup(response.content, 'html.parser')
-                text = soup.get_text()
-                text = text.replace("/n", "")
-                text = text.replace("\n", "")
-                text = text.replace("\\n", "")
-                text = text.replace("//n", "")
-                text = text.replace("//", "")
-                text = text.replace("\t", "")
-                text = text.replace("\t3", "")
-                text = text.replace("\xa0", "")
-                text = text.replace("  ", "")
+                    cost = round(num_tokens_from_string(limit_string_tokens(text,1000)+str(question))*1.1)/1000*0.06
+                    GPTGoogleCosts.append(cost)
+                    textList.append(limit_string_tokens(text,1000))
+                else:
+                    print(f"Skipping {link} as it took too long to get the data")
+            except Timeout:
+                # Handle the timeout exception
+                print("The request timed out")
+                pass
 
-                cost = round(num_tokens_from_string(limit_string_tokens(text,1000)+str(question))*1.1)/1000*0.004
-                GPTGoogleCosts.append(cost)
-                textList.append(limit_string_tokens(text,1000))
-            else:
-                print(f"Skipping {link} as it took too long to get the data")
+            except requests.exceptions.RequestException as e:
+                # This will catch any other exceptions like HTTPError, ConnectionError etc.
+                print(f"An error occurred: {e}")
+                pass
 
         limited_strings = limit_tokens(textList, 1500)
 
@@ -164,7 +174,7 @@ async def generate_summary(
                 obj['role'] = 'user'
         
         response = openai.ChatCompletion.create(
-            model = 'gpt-3.5-turbo',
+            model = 'gpt-4',
             temperature=0,
             messages=message_objects
         )
@@ -262,7 +272,7 @@ async def generate_completion_response(
                 obj['role'] = 'user'
         
         response = openai.ChatCompletion.create(
-            model = 'gpt-3.5-turbo',
+            model = 'gpt-4',
             temperature=0,
             messages=message_objects
         )
@@ -282,7 +292,7 @@ async def generate_completion_response(
 
         tokenSum = round(sum(token_list)*1.1)
 
-        cost = tokenSum/1000*0.004
+        cost = tokenSum/1000*0.06
 
         sql = "INSERT INTO JaduGPT (User, UserID, Cost, Datetime) VALUES (%s, %s,%s, %s)"
         val = (str(user),str(user.id), str(cost), str(datetime.now()))
