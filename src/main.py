@@ -533,7 +533,9 @@ async def allow_command(int: discord.Interaction):
                     description=''
                 )       
 
-        for item in result:
+        sorted_data = sorted(result, key=lambda x: x[2], reverse=True) 
+
+        for item in sorted_data[0:21]:
             name_, userID, costs = item
             if str(name_).startswith('Grand Total'):
                 embed.add_field(name=str(str(name_)), value=str(round(costs, 4)), inline=False)
