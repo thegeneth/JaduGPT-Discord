@@ -315,7 +315,6 @@ async def thread_command(int: discord.Interaction):
                         
                     embed.add_field(name='⚠️ Be sure not to spam!', value='We do not save your questions but we do monitor user interactions and costs', inline=False)
                     embed.add_field(name='✅ Start new /chat:', value='Whenever you want to change the subject of your conversation, be sure to start a new thread with /chat at the <#1105175304395309066>', inline=False)
-                    embed.add_field(name='🔎 Use /google:', value='You can use /google to make the GPT do a Google Search to update its knowledge base according to your message. This feature is limited in 2 / thread.', inline=False)
                     embed.add_field(name='👷 Ask for help:', value='You can ask for help from the team or from @thegen (the project dev)', inline=False)
                     embed.add_field(name='🚫 Our Restrictions:', value='We allow users to create up to 2 new threads every 10 minutes', inline=False)
 
