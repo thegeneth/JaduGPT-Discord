@@ -26,19 +26,58 @@ from src.moderation import (
     send_moderation_blocked_message,
     send_moderation_flagged_message,
 )
-from datetime import datetime
 import pandas as pd
 from datetime import datetime, timedelta
-
-import tiktoken
 import os
 from dotenv import load_dotenv
-
 import MySQLdb
-from datetime import datetime
-import json
 import requests
 import time
+
+
+def choose_model_for_user(user_id):
+
+    skip_values = ['1104163607979249736']
+    # skip_values = ['1105175899743203358']
+    
+    if str(user_id) not in skip_values:
+        print(user_id)
+
+        connection = MySQLdb.connect(
+                host= os.getenv("HOST"),
+                user=os.getenv("USERNAME2"),
+                password= os.getenv("PASSWORD"),
+                db= os.getenv("DATABASE"),
+                ssl=os.getenv("SSL_CERT")
+            )
+
+        mycursor = connection.cursor()
+        
+        # Get the current date and time
+        current_date = datetime.now()
+
+        # Calculate the start date for the previous week
+        start_date = current_date - timedelta(days=1)
+
+        # Generate the SQL query
+        query = f"SELECT SUM(Cost) as TotalCost FROM JaduGPT WHERE UserID = '{user_id}' AND Datetime >= '{start_date}' AND Datetime <= '{current_date}';"
+
+        mycursor.execute(query)
+        result = mycursor.fetchall()
+
+        try:
+            # Get the total cost from the result
+            total_cost = float(result[0][0])
+        except:
+            return 'gpt-3.5-turbo'
+
+        # Return the total model
+        if total_cost <= 0.999:
+            return 'gpt-4'
+        else:
+            return 'gpt-3.5-turbo'
+    else:
+        return 'gpt-3.5-turbo'
 
 def check_network_availability():
     url = 'https://www.google.com'
@@ -168,12 +207,15 @@ async def chat_command(int: discord.Interaction, message: str):
                         f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
                     )
                     return
+                
+                
+                model = choose_model_for_user(message.author.id)
 
                 async with thread.typing():
                     # fetch completion
                     messages = [Message(user=user.name, text=message)]
                     response_data = await generate_summary(
-                        messages=messages, user=user
+                        messages=messages, user=user, gptmodel=choose_model_for_user(message.author.id)
                     )
                     # send the result
                     await process_response(
@@ -469,7 +511,6 @@ async def allow_command(int: discord.Interaction, message: str):
             )
             return
         
-      
         thread =  int.channel
 
         await thread.send(f"{int.user.mention}" + " unblocked UserID "+ f'"{message}"')
@@ -562,6 +603,8 @@ async def on_message(message: DiscordMessage):
             ssl=os.getenv("SSL_CERT")
         )
 
+        
+
         mycursor = connection.cursor()
         
         sql = f"SELECT * FROM JaduBlockedUsers WHERE BlockedUserID = {message.author.id} AND IsBlocked = 1"
@@ -570,6 +613,8 @@ async def on_message(message: DiscordMessage):
         result = mycursor.fetchall()
         connection.commit()
         connection.close()
+
+        choose_model_for_user(message.author.id)
 
         if len(result) == 0:
             if str(message.content[0:2]) != '<@':
@@ -672,31 +717,10 @@ async def on_message(message: DiscordMessage):
                     channel_messages = [x for x in channel_messages if x is not None]
                     channel_messages.reverse()
 
-                    # print(thread.name)
-                    # if thread.name[0:3] == 'GPT4':
-                    #     # generate the response
-                    #     async with thread.typing():
-                    #         response_data = await generate_completion_response4(
-                    #             messages=channel_messages, user=message.author
-                    #         )
-
-                    #     if is_last_message_stale(
-                    #         interaction_message=message,
-                    #         last_message=thread.last_message,
-                    #         bot_id=client.user.id,
-                    #     ):
-                    #         # there is another message and its not from us, so ignore this response
-                    #         return
-
-                    #     # send response
-                    #     await process_response4(
-                    #         user=message.author, thread=thread, response_data=response_data
-                    #     )
-
                     # generate the response
                     async with thread.typing():
                         response_data = await generate_completion_response(
-                            messages=channel_messages, user=message.author
+                            messages=channel_messages, user=message.author, gptmodel=choose_model_for_user(message.author.id)
                         )
 
                     if is_last_message_stale(

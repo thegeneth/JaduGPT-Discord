@@ -79,9 +79,10 @@ class CompletionData:
     status_text: Optional[str]
 
 async def generate_summary(
-    messages: List[Message], user: str
+    messages: List[Message], user: str, gptmodel=str
 ) -> CompletionData:
     try:
+        print(gptmodel)
         prompt = Prompt(
             header=Message(
                 "System", f"Instructions for {MY_BOT_NAME}: {BOT_INSTRUCTIONS}"
@@ -139,7 +140,10 @@ async def generate_summary(
                     text = text.replace("\xa0", "")
                     text = text.replace("  ", "")
 
-                    cost = round(num_tokens_from_string(limit_string_tokens(text,1000)+str(question))*1.1)/1000*0.06
+                    if gptmodel == 'gpt-3.5-turbo':
+                        cost = round(num_tokens_from_string(limit_string_tokens(text,1000)+str(question))*1.1)/1000*0.006
+                    else:
+                        cost = round(num_tokens_from_string(limit_string_tokens(text,1000)+str(question))*1.1)/1000*0.06
                     GPTGoogleCosts.append(cost)
                     textList.append(limit_string_tokens(text,1000))
                 else:
@@ -174,7 +178,7 @@ async def generate_summary(
                 obj['role'] = 'user'
         
         response = openai.ChatCompletion.create(
-            model = 'gpt-4',
+            model = gptmodel,
             temperature=0,
             messages=message_objects
         )
@@ -243,7 +247,7 @@ async def generate_summary(
 
 
 async def generate_completion_response(
-    messages: List[Message], user: str
+    messages: List[Message], user: str, gptmodel=str
 ) -> CompletionData:
     try:
         prompt = Prompt(
@@ -272,7 +276,7 @@ async def generate_completion_response(
                 obj['role'] = 'user'
         
         response = openai.ChatCompletion.create(
-            model = 'gpt-4',
+            model = gptmodel,
             temperature=0,
             messages=message_objects
         )
@@ -292,7 +296,10 @@ async def generate_completion_response(
 
         tokenSum = round(sum(token_list)*1.1)
 
-        cost = tokenSum/1000*0.06
+        if gptmodel == 'gpt-3.5-turbo':
+            cost = tokenSum/1000*0.006
+        else:
+            cost = tokenSum/1000*0.06
 
         sql = "INSERT INTO JaduGPT (User, UserID, Cost, Datetime) VALUES (%s, %s,%s, %s)"
         val = (str(user),str(user.id), str(cost), str(datetime.now()))
