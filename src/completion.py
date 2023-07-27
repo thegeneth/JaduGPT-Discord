@@ -82,7 +82,6 @@ async def generate_summary(
     messages: List[Message], user: str, gptmodel=str
 ) -> CompletionData:
     try:
-        print(gptmodel)
         prompt = Prompt(
             header=Message(
                 "System", f"Instructions for {MY_BOT_NAME}: {BOT_INSTRUCTIONS}"

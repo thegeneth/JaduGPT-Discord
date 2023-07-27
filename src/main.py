@@ -37,11 +37,9 @@ import time
 
 def choose_model_for_user(user_id):
 
-    skip_values = ['1104163607979249736']
-    # skip_values = ['1105175899743203358']
+    skip_values = ['1104163607979249736','1105175899743203358']    
     
     if str(user_id) not in skip_values:
-        print(user_id)
 
         connection = MySQLdb.connect(
                 host= os.getenv("HOST"),
@@ -68,6 +66,7 @@ def choose_model_for_user(user_id):
         try:
             # Get the total cost from the result
             total_cost = float(result[0][0])
+            print(total_cost)
         except:
             return 'gpt-3.5-turbo'
 
@@ -207,9 +206,6 @@ async def chat_command(int: discord.Interaction, message: str):
                         f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.", ephemeral=True
                     )
                     return
-                
-                
-                model = choose_model_for_user(message.author.id)
 
                 async with thread.typing():
                     # fetch completion
