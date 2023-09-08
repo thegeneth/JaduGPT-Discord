@@ -27,6 +27,8 @@ from bs4 import BeautifulSoup
 import time
 from requests.exceptions import Timeout
 
+import asyncio
+
 load_dotenv()
 
 encoding = tiktoken.encoding_for_model("gpt-4")
@@ -274,11 +276,12 @@ async def generate_completion_response(
             else:
                 obj['role'] = 'user'
         
-        response = openai.ChatCompletion.create(
-            model = gptmodel,
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(
+            model=gptmodel,
             temperature=0,
             messages=message_objects
-        )
+        ))
         reply = response.choices[0]["message"]["content"]
         
         token_list.append(num_tokens_from_string(reply))
