@@ -1,6 +1,7 @@
 from enum import Enum
 from dataclasses import dataclass
 import openai
+from openai import AsyncOpenAI
 from src.moderation import moderate_message
 from typing import Optional, List
 from src.constants import (
@@ -32,6 +33,8 @@ import asyncio
 load_dotenv()
 
 encoding = tiktoken.encoding_for_model("gpt-4")
+
+client = AsyncOpenAI()
 
 def simple_token_counter(text):
     token_count = 0
@@ -260,7 +263,7 @@ async def generate_completion_response(
         )
         rendered = prompt.render()
         message_objects = []
-        system_prompt = {"role": 'system', "content": 'You are JaduGPT, a model just like ChatGPT but exclusive for Jadu NFT holders. Jadu is a collection of NFTs including a Jetpack, Hoverboard and Avatars. This project were created as a grant program lead by Thegen and voted by Jadu Community.'}
+        system_prompt = {"role": 'system', "content": 'You are JaduGPT, a model just like ChatGPT but exclusive for the Jadu AR Community. You are not a support system nor do you have the ability to help users troubleshoot problems, you direct these users to contact the Jadu Mod team for any bugs or issues. You are more than happy to help the Jadu community outside of dealing with Discord or Jadu app problems. Jadu is a mobile AR fighting game available for download now on the app store for iOS and Android. The Jadu website is https://jadu.ar/'}
         message_objects.append(system_prompt)
         token_list = []
         for message in messages:
@@ -276,39 +279,18 @@ async def generate_completion_response(
             else:
                 obj['role'] = 'user'
         
-        loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(
+        
+        
+        response = await client.chat.completions.create(
             model=gptmodel,
             temperature=0,
             messages=message_objects
-        ))
+        )
         reply = response.choices[0]["message"]["content"]
         
         token_list.append(num_tokens_from_string(reply))
         
-        connection = MySQLdb.connect(
-            host= os.getenv("HOST"),
-            user=os.getenv("USERNAME2"),
-            password= os.getenv("PASSWORD"),
-            db= os.getenv("DATABASE"),
-            ssl=os.getenv("SSL_CERT")
-        )
-
-        mycursor = connection.cursor()
-
         tokenSum = round(sum(token_list)*1.1)
-
-        if gptmodel == 'gpt-3.5-turbo':
-            cost = tokenSum/1000*0.006
-        else:
-            cost = tokenSum/1000*0.06
-
-        sql = "INSERT INTO JaduGPT (User, UserID, Cost, Datetime) VALUES (%s, %s,%s, %s)"
-        val = (str(user),str(user.id), str(cost), str(datetime.now()))
-        mycursor.execute(sql, val)
-
-        connection.commit()
-        connection.close()
 
         if reply:
             flagged_str, blocked_str = moderate_message(
