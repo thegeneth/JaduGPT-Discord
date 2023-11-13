@@ -258,7 +258,7 @@ async def chat_command(int: discord.Interaction, message: str):
 
 
 # /costs all costs:
-@tree.command(name="chat", description="create private thread for you to chat with JaduGPT")
+@tree.command(name="chat", description="create private thread for you to chat with AVA-GPT")
 @discord.app_commands.checks.has_permissions(send_messages=True)
 @discord.app_commands.checks.has_permissions(view_channel=True)
 @discord.app_commands.checks.bot_has_permissions(send_messages=True)
@@ -319,7 +319,7 @@ async def thread_command(int: discord.Interaction):
                 try:
                     
                     embed = discord.Embed(
-                        title='🤖💬 JaduGPT response will be sent on private thread!',
+                        title='🤖💬 AVA-GPT response will be sent on private thread!',
                         description=f"{int.user.mention} be sure not to spam! ",
                         color=discord.Color.green()
                     )           
@@ -381,7 +381,7 @@ async def thread_command(int: discord.Interaction):
 
 
 # /deny user:
-@tree.command(name="deny", description="Deny UserID from using JaduGPT")
+@tree.command(name="deny", description="Deny UserID from using AVA-GPT")
 @discord.app_commands.checks.has_permissions(send_messages=True)
 @discord.app_commands.checks.has_permissions(view_channel=True)
 @discord.app_commands.checks.bot_has_permissions(send_messages=True)
@@ -437,7 +437,7 @@ async def deny_command(int: discord.Interaction, message: str):
         )
 
 # /allow user:
-@tree.command(name="allow", description="Allow UserID from using JaduGPT")
+@tree.command(name="allow", description="Allow UserID from using AVA-GPT")
 @discord.app_commands.checks.has_permissions(send_messages=True)
 @discord.app_commands.checks.has_permissions(view_channel=True)
 @discord.app_commands.checks.bot_has_permissions(send_messages=True)
