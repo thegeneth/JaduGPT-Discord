@@ -60,7 +60,6 @@ class CompletionData:
     reply_text: Optional[str]
     status_text: Optional[str]
 
-
 async def generate_completion_response(
     messages: List[Message], user: str, gptmodel=str
 ) -> CompletionData:
@@ -139,7 +138,7 @@ async def generate_completion_response(
             status=CompletionResult.OK, reply_text=reply, status_text=None
         )
     except openai.BadRequestError as e:
-        if "This model's maximum context length" in e.user_message:
+        if "This model's maximum context length" in e.message:
             return CompletionData(
                 status=CompletionResult.TOO_LONG,
                 reply_text=None,
