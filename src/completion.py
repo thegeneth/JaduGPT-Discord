@@ -109,14 +109,26 @@ async def generate_completion_response(
         )
 
         # log the model and user of this api call to the completions endpoint
-        print(f"model: {response.model}, user: {user}")
+        print(f"LOG: model: {response.model}, user: {user}")
 
         tokens_used = response.usage.total_tokens
-
-        if gptmodel == 'gpt-3.5-turbo':
-            cost = tokens_used/1000*0.002
+        prompt_tokens = response.usage.prompt_tokens
+        completion_tokens = response.usage.completion_tokens
+    
+        if gptmodel == 'gpt-3.5-turbo-1106':
+            input_cost = prompt_tokens/1000*0.001
+            output_cost = completion_tokens/1000*0.002
+            new_cost = input_cost + output_cost
+            old_cost = tokens_used/1000*0.002
+            cost = old_cost
+            print(f"LOG: GPT-3.5 input cost: {input_cost}, output cost: {output_cost}, new cost: {new_cost}, old cost: {old_cost}")
         else:
-            cost = tokens_used/1000*0.03
+            input_cost = prompt_tokens/1000*0.01
+            output_cost = completion_tokens/1000*0.03
+            new_cost = input_cost + output_cost
+            old_cost = tokens_used/1000*0.03
+            cost = old_cost
+            print(f"LOG: GPT-4 input cost: {input_cost}, output cost: {output_cost}, new cost: {new_cost}, old cost: {old_cost}")
 
         sql = "INSERT INTO jadugpt.costs VALUES (%s, %s, %s, %s)"
         val = (str(user), str(user.id), str(cost), str(datetime.now()))
