@@ -115,12 +115,12 @@ async def generate_completion_response(
             input_cost = prompt_tokens/1000*0.001
             output_cost = completion_tokens/1000*0.002
             cost = input_cost + output_cost
-            print(f"LOG: model: {response.model}, user: {user}, cost: {'{:.2f}'.format(cost)}")
+            print(f"LOG: model: {response.model}, user: {user}, cost: {'{:.4f}'.format(cost)}")
         else:
             input_cost = prompt_tokens/1000*0.01
             output_cost = completion_tokens/1000*0.03
             cost = input_cost + output_cost
-            print(f"LOG: model: {response.model}, user: {user}, cost: {'{:.2f}'.format(cost)}")
+            print(f"LOG: model: {response.model}, user: {user}, cost: {'{:.4f}'.format(cost)}")
 
         sql = "INSERT INTO jadugpt.costs VALUES (%s, %s, %s, %s)"
         val = (str(user), str(user.id), str(cost), str(datetime.now()))
