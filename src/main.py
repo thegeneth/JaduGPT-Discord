@@ -20,7 +20,6 @@ from src.utils import (
 )
 from src import completion
 from src.completion import generate_completion_response, process_response
-
 from src.moderation import (
     moderate_message,
     send_moderation_blocked_message,
@@ -30,22 +29,35 @@ import pandas as pd
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
-import sqlite3
 import requests
 import time
+import psycopg2
+
 
 load_dotenv()
-con = sqlite3.connect("database.db")
-cursor = con.cursor()
+postgrepw = str(os.getenv("POSTGREPW"))
+postgrehost = str(os.getenv("POSTGREHOST"))
+
+
+class POSTGRE_DB_HELPER:
+    def get_postgre_connection(self) -> psycopg2.extensions.connection:
+        conn = psycopg2.connect(
+            database="postgres",
+            user="postgres",
+            password=postgrepw,
+            host=postgrehost,
+            port="5432",
+        )
+        return conn
 
 
 def choose_model_for_user(user_id):
+    user_id = str(user_id)
     skip_values = ["1104163607979249736", "1105175899743203358"]
 
     if str(user_id) not in skip_values:
-        con = sqlite3.connect("database.db")
-
-        cursor = con.cursor()
+        connection = POSTGRE_DB_HELPER().get_postgre_connection()
+        cur = connection.cursor()
 
         # Get the current date and time
         current_date = datetime.now()
@@ -53,20 +65,24 @@ def choose_model_for_user(user_id):
         # Calculate the start date for the previous week
         start_date = current_date - timedelta(days=1)
 
-        # Generate the SQL query
-        query = f"SELECT SUM(Cost) as TotalCost FROM JaduGPT WHERE UserID = '{user_id}' AND Datetime >= '{start_date}' AND Datetime <= '{current_date}';"
+        # Generate the SQL query with explicit type cast
+        query = f"SELECT SUM(cost::numeric) as TotalCost FROM jadugpt.costs WHERE userid = '{user_id}' AND datetime >= '{start_date}' AND datetime <= '{current_date}';"
 
-        cursor.execute(query)
-        result = cursor.fetchall()
+        cur.execute(query)
+        result = cur.fetchall()
 
         try:
             # Get the total cost from the result
-            total_cost = float(result[0][0])
-            print(total_cost)
-        except:
+            if result[0][0] is None:
+                total_cost = 0
+            else:
+                total_cost = float(result[0][0])
+            print(f"total_cost of user {user_id} is {total_cost}")
+        except Exception as e:
+            print(e)
             return "gpt-3.5-turbo"
 
-        # Return the total model
+        # Return the model
         if total_cost <= 0.999:
             return "gpt-4"
         else:
@@ -139,16 +155,16 @@ async def thread_command(int: discord.Interaction):
         if should_block(guild=int.guild):
             return
 
-        con = sqlite3.connect("database.db")
+        con = POSTGRE_DB_HELPER().get_postgre_connection()
 
         cursor = con.cursor()
-
-        sql = f"SELECT * FROM JaduBlockedUsers WHERE BlockedUserID = {int.user.id} AND IsBlocked = 1"
+        user_id = str(int.user.id)
+        sql = f"SELECT * FROM jadugpt.blockedusers WHERE blockeduserid = '{user_id}' AND isblocked = true"
 
         cursor.execute(sql)
         result = cursor.fetchall()
 
-        sql2 = f"SELECT * FROM JaduThreads WHERE UserID = {int.user.id}"
+        sql2 = f"SELECT * FROM jadugpt.threads WHERE userid = '{user_id}'"
 
         cursor.execute(sql2)
         result2 = cursor.fetchall()
@@ -196,14 +212,12 @@ async def thread_command(int: discord.Interaction):
 
                     await thread.send(f"{int.user.mention}")
 
-                    query = "INSERT INTO JaduThreads (Date, UserID) VALUES  (?, ?)"
+                    query = (
+                        "INSERT INTO jadugpt.threads (date, userid) VALUES  (%s, %s)"
+                    )
 
-                    val = (str(datetime.now()), str(int.user.id))
-                    try:
-                        cursor.execute(query, val)
-                    except sqlite3.OperationalError as e:
-                        await asyncio.sleep(1)
-                        cursor.execute(query, val)
+                    val = (str(datetime.now()), user_id)
+                    cursor.execute(query, val)
                     con.commit()
 
                     embed = discord.Embed(
@@ -223,13 +237,13 @@ async def thread_command(int: discord.Interaction):
                         inline=False,
                     )
                     embed.add_field(
-                        name="👷 Ask for help", 
-                        value= "You can ask for help from the team or from @thegen (the project dev)",
-                        inline=False
+                        name="👷 Ask for help",
+                        value="You can ask for help from the team or from @thegen (the project dev)",
+                        inline=False,
                     )
                     embed.add_field(
-                        name = "🚫 Our Restrictions",
-                        value = "We allow users to create up to 2 new threads every 10 minutes",
+                        name="🚫 Our Restrictions",
+                        value="We allow users to create up to 2 new threads every 10 minutes",
                         inline=False,
                     )
 
@@ -244,7 +258,7 @@ async def thread_command(int: discord.Interaction):
                     return
         else:
             embed = discord.Embed(
-                title="🚫⚠️Limit reached⚠️",
+                title="🚫 Limit reached ",
                 description=f"{int.user.mention} Seems like you reached the limit of new threads. Please wait 10 minutes and try /chat again.",
                 color=discord.Color.red(),
             )
@@ -276,11 +290,11 @@ async def deny_command(int: discord.Interaction, message: str):
         if should_block(guild=int.guild):
             return
 
-        con = sqlite3.connect("database.db")
+        con = POSTGRE_DB_HELPER().get_postgre_connection()
 
         cursor = con.cursor()
 
-        sql = "INSERT INTO JaduBlockedUsers (Moderator, BlockedUserID, DateTime, IsBlocked) VALUES  (?, ?,?, ?)"
+        sql = "INSERT INTO jadugpt.blockedusers (moderator, blockeduserid, datetime, isblocked) VALUES  (%s, %s, %s, %s)"
 
         val = (str(int.user), str(message), str(datetime.now()), 1)
         cursor.execute(sql, val)
@@ -316,7 +330,7 @@ async def deny_command(int: discord.Interaction, message: str):
 @discord.app_commands.checks.bot_has_permissions(send_messages=True)
 @discord.app_commands.checks.bot_has_permissions(view_channel=True)
 @discord.app_commands.checks.bot_has_permissions(manage_threads=True)
-async def allow_command(int: discord.Interaction, message: str):
+async def allow_command(int: discord.Interaction, user: discord.User):
     try:
         # only support creating thread in text channel
         if not isinstance(int.channel, discord.Thread):
@@ -326,17 +340,17 @@ async def allow_command(int: discord.Interaction, message: str):
         if should_block(guild=int.guild):
             return
 
-        con = sqlite3.connect("database.db")
+        con = POSTGRE_DB_HELPER().get_postgre_connection()
 
         cursor = con.cursor()
 
-        sql = "UPDATE JaduBlockedUsers SET IsBlocked = 0 WHERE BlockedUserID = ?"
+        sql = "UPDATE jadugpt.blockedusers SET isblocked = 0 WHERE blockeduserid = %s"
 
-        val = (str(message))
+        val = str(user.id)
         cursor.execute(sql, val)
         con.commit()
 
-        sql2 = f"SELECT * FROM JaduThreads WHERE UserID = {str(message)}"
+        sql2 = f"SELECT * FROM jadugpt.threads WHERE userid = '{str(user.id)}'"
 
         cursor.execute(sql2)
         result2 = cursor.fetchall()
@@ -353,11 +367,9 @@ async def allow_command(int: discord.Interaction, message: str):
 
         most_recent_datetime = get_most_recent_datetime(result2)
 
-        sql3 = (
-            "UPDATE JaduThreads SET allowed = 'allow' WHERE Date = ? AND UserID = ?"
-        )
+        sql3 = "UPDATE jadugpt.threads SET allowed = 'allow' WHERE date = '%s' AND userid = '%s'"
 
-        val = (str(most_recent_datetime), str(message))
+        val = (str(most_recent_datetime), str(user.id))
         cursor.execute(sql3, val)
         con.commit()
 
@@ -374,7 +386,7 @@ async def allow_command(int: discord.Interaction, message: str):
 
         thread = int.channel
 
-        await thread.send(f"{int.user.mention}" + " unblocked UserID " + f'"{message}"')
+        await thread.send(f"{int.user.mention}" + " unblocked UserID " + f'"{user.id}"')
 
     except Exception as e:
         logger.exception(e)
@@ -391,7 +403,7 @@ async def allow_command(int: discord.Interaction, message: str):
 @discord.app_commands.checks.bot_has_permissions(send_messages=True)
 @discord.app_commands.checks.bot_has_permissions(view_channel=True)
 @discord.app_commands.checks.bot_has_permissions(manage_threads=True)
-async def allow_command(int: discord.Interaction):
+async def costs_command(int: discord.Interaction):
     try:
         # only support creating thread in text channel
         if not isinstance(int.channel, discord.Thread):
@@ -401,15 +413,14 @@ async def allow_command(int: discord.Interaction):
         if should_block(guild=int.guild):
             return
 
-        con = sqlite3.connect("database.db")
+        con = POSTGRE_DB_HELPER().get_postgre_connection()
 
         cursor = con.cursor()
 
-        sql = "SELECT User, UserID, TotalCost FROM (SELECT User, UserID, SUM(Cost) AS TotalCost FROM JaduGPT GROUP BY User, UserID UNION ALL SELECT 'Grand Total', NULL, SUM(Cost) AS TotalCost FROM JaduGPT) AS result;"
+        sql = "SELECT DiscordUsername, UserID, SUM(cost::numeric) AS TotalCost FROM (SELECT discordusername, userid, cost::numeric FROM jadugpt.costs GROUP BY discordusername, userid, cost UNION ALL SELECT 'Grand Total', NULL, SUM(cost::numeric) AS TotalCost FROM jadugpt.costs) AS result GROUP BY DiscordUsername, UserID;"
 
         cursor.execute(sql)
         result = cursor.fetchall()
-        con.commit()
 
         try:
             await int.response.send_message(f"/costs by {int.user.mention}")
@@ -459,53 +470,50 @@ async def allow_command(int: discord.Interaction):
 @client.event
 async def on_message(message: DiscordMessage):
     try:
-        con = sqlite3.connect("database.db")
+        # ignore messages not in a thread
+        channel = message.channel
+        if not isinstance(channel, discord.Thread):
+            return
+        # if the channel is a thread, check the thread parent channel id.
+        if channel.parent_id != 1172653318842089584:
+            return
+        # ignore messages from the bot
+        if message.author == client.user:
+            return
+        # block servers not in allow list
+        if should_block(guild=message.guild):
+            return
+        # ignore threads not created by the bot
+        thread = channel
+        if thread.owner_id != client.user.id:
+            return
+        # ignore threads that are archived locked or title is not what we want
+        if (
+            thread.archived
+            or thread.locked
+            or not thread.name.startswith(ACTIVATE_THREAD_PREFX)
+        ):
+            # ignore this thread
+            return
+        if thread.message_count > MAX_THREAD_MESSAGES:
+            # too many messages, no longer going to reply
+            await close_thread(thread=thread)
+            return
+
+        con = POSTGRE_DB_HELPER().get_postgre_connection()
 
         cursor = con.cursor()
+        user_id = str(message.author.id)
 
-        sql = f"SELECT * FROM JaduBlockedUsers WHERE BlockedUserID = {message.author.id} AND IsBlocked = 1"
+        sql = f"SELECT * FROM jadugpt.blockedusers WHERE blockeduserid = '{user_id}' AND isblocked = true"
 
         cursor.execute(sql)
         result = cursor.fetchall()
-        con.commit()
 
-        choose_model_for_user(message.author.id)
-
+        choose_model_for_user(user_id)
         if len(result) == 0:
             if str(message.content[0:2]) != "<@":
                 if str(message.content[0:1]) != "/":
-                    # block servers not in allow list
-                    if should_block(guild=message.guild):
-                        return
-
-                    # ignore messages from the bot
-                    if message.author == client.user:
-                        return
-
-                    # ignore messages not in a thread
-                    channel = message.channel
-                    if not isinstance(channel, discord.Thread):
-                        return
-
-                    # ignore threads not created by the bot
-                    thread = channel
-                    if thread.owner_id != client.user.id:
-                        return
-
-                    # ignore threads that are archived locked or title is not what we want
-                    if (
-                        thread.archived
-                        or thread.locked
-                        or not thread.name.startswith(ACTIVATE_THREAD_PREFX)
-                    ):
-                        # ignore this thread
-                        return
-
-                    if thread.message_count > MAX_THREAD_MESSAGES:
-                        # too many messages, no longer going to reply
-                        await close_thread(thread=thread)
-                        return
-
                     # moderate the message
                     flagged_str, blocked_str = moderate_message(
                         message=message.content, user=message.author

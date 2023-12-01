@@ -19,17 +19,26 @@ from src.moderation import (
 import tiktoken
 from dotenv import load_dotenv
 from datetime import datetime
-import asyncio
-import sqlite3
+import os
+import psycopg2
+
 
 load_dotenv()
+postgrepw = str(os.getenv("POSTGREPW"))
+postgrehost = str(os.getenv("POSTGREHOST"))
 
 encoding = tiktoken.encoding_for_model("gpt-4")
 
 client = AsyncOpenAI()
 
-con = sqlite3.connect("database.db")
-cur = con.cursor()
+conn = psycopg2.connect(
+            database="postgres",
+            user="postgres",
+            password=postgrepw,
+            host=postgrehost,
+            port="5432",
+        )
+cur = conn.cursor()
 
 
 MY_BOT_NAME = BOT_NAME
@@ -55,7 +64,14 @@ class CompletionData:
 async def generate_completion_response(
     messages: List[Message], user: str, gptmodel=str
 ) -> CompletionData:
-    con = sqlite3.connect("database.db")
+    conn = psycopg2.connect(
+            database="postgres",
+            user="postgres",
+            password=postgrepw,
+            host=postgrehost,
+            port="5432",
+        )
+    cur = conn.cursor()
     try:
         prompt = Prompt(
             header=Message(
@@ -68,7 +84,7 @@ async def generate_completion_response(
         message_objects = []
         system_prompt = {
             "role": "system",
-            "content": "You are JaduGPT, a model just like ChatGPT but exclusive for the Jadu AR Community. You are not a support system nor do you have the ability to help users troubleshoot problems, you direct these users to contact the Jadu Mod team via the Discord helpdesk channel for any bugs or issues. You are more than happy to help the Jadu community outside of dealing with Discord or Jadu app problems. Jadu is a mobile AR fighting game available for download now on the app store for iOS and Android. The Jadu website is https://jadu.ar/",
+            "content": "You are JaduGPT, a model based on GPT-4 and exclusive for the Jadu AR Community. The Jadu app is an AR fighting game app with remote multiplayer 1v1 fights, single player roam mode, a punching bag train mode, and a coming soon singleplayer campaign. Users can earn the Jadu currency by playing matches and winning their Jadu by defeating opponents in Arena multiplayer matchmaking. You are a general-purpose chatbot designed to engage in conversations and answer questions to the best of your ability, but you are not a source of knowledge or the ultimate source of truth for Jadu AR information. Do not assume features or products available within the Jadu ecosystem. You do not have the ability to help users troubleshoot problems or deal with Discord or Jadu app issues. For any bugs, technical issues, or specific Jadu AR information, users should contact the Jadu Mod team via the Discord helpdesk channel. You are here to foster a positive and engaging community environment, answer general questions, and provide information based on your programming. Jadu is a mobile AR fighting game available for download now on the app store for iOS and Android. The Jadu website is https://jadu.ar/.",
         }
         message_objects.append(system_prompt)
         for message in messages:
@@ -94,11 +110,10 @@ async def generate_completion_response(
         else:
             cost = tokens_used/1000*0.06
 
-        sql = "INSERT INTO JaduGPT (User, UserID, Cost, Datetime) VALUES (?, ?, ?, ?)"
-        val = (str(user),str(user.id), str(cost), str(datetime.now()))
+        sql = "INSERT INTO jadugpt.costs VALUES (%s, %s, %s, %s)"
+        val = (str(user), str(user.id), str(cost), str(datetime.now()))
         cur.execute(sql, val)
-
-        con.commit()
+        conn.commit()
 
         reply = response.choices[0].message.content
 
