@@ -77,10 +77,10 @@ def choose_model_for_user(user_id):
                 total_cost = 0
             else:
                 total_cost = float(result[0][0])
-            print(f"total_cost of user {user_id} is {total_cost}")
+            print(f"LOG: daily cost of user {user_id} is {total_cost}")
         except Exception as e:
             print(e)
-            return "gpt-3.5-turbo"
+            return "gpt-3.5-turbo-1106"
 
         # Return the model
         if total_cost <= 0.999:
@@ -510,7 +510,6 @@ async def on_message(message: DiscordMessage):
         cursor.execute(sql)
         result = cursor.fetchall()
 
-        choose_model_for_user(user_id)
         if len(result) == 0:
             if str(message.content[0:2]) != "<@":
                 if str(message.content[0:1]) != "/":
