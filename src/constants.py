@@ -61,9 +61,9 @@ MODERATION_VALUES_FOR_FLAGGED = {
 SECONDS_DELAY_RECEIVING_MSG = (
     3  # give a delay for the bot to respond so it can catch multiple messages
 )
-MAX_THREAD_MESSAGES = 200
+MAX_THREAD_MESSAGES = 50
 ACTIVATE_THREAD_PREFX = "💬✅"
 INACTIVATE_THREAD_PREFIX = "💬❌"
 MAX_CHARS_PER_REPLY_MSG = (
-    1500  # discord has a 2k limit, we just break message into 1.5k
+    1900  # discord has a 2k limit, we just break message into 1.5k
 )
