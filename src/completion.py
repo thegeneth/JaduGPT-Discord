@@ -102,6 +102,9 @@ async def generate_completion_response(
             model=gptmodel, temperature=0, messages=message_objects
         )
 
+        # log the model and user of this api call to the completions endpoint
+        print(f"model: {response.model}, user: {user}")
+
         tokens_used = response.usage.total_tokens
 
         if gptmodel == 'gpt-3.5-turbo':
