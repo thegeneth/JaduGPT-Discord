@@ -86,9 +86,9 @@ def choose_model_for_user(user_id):
         if total_cost <= 0.999:
             return "gpt-4-1106-preview"
         else:
-            return "gpt-3.5-turbo"
+            return "gpt-3.5-turbo-1106"
     else:
-        return "gpt-3.5-turbo"
+        return "gpt-3.5-turbo-1106"
 
 
 def check_network_availability():

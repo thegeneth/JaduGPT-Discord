@@ -108,9 +108,9 @@ async def generate_completion_response(
         tokens_used = response.usage.total_tokens
 
         if gptmodel == 'gpt-3.5-turbo':
-            cost = tokens_used/1000*0.006
+            cost = tokens_used/1000*0.002
         else:
-            cost = tokens_used/1000*0.06
+            cost = tokens_used/1000*0.03
 
         sql = "INSERT INTO jadugpt.costs VALUES (%s, %s, %s, %s)"
         val = (str(user), str(user.id), str(cost), str(datetime.now()))
