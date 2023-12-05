@@ -26,7 +26,7 @@ import psycopg2
 load_dotenv()
 postgrepw = str(os.getenv("POSTGREPW"))
 postgrehost = str(os.getenv("POSTGREHOST"))
-
+systemprompt = str(os.getenv("SYSTEMPROMPT"))
 encoding = tiktoken.encoding_for_model("gpt-4")
 
 client = AsyncOpenAI()
@@ -89,7 +89,7 @@ async def generate_completion_response(
         else:
             system_prompt = {
                 "role": "system",
-                "content": "You are JaduGPT, a model based on GPT-4 and exclusive for the Jadu AR Community. The Jadu app is an AR fighting game app with remote multiplayer 1v1 fights, single player roam mode, a punching bag train mode, and a coming soon singleplayer campaign. Users can earn the Jadu currency by playing matches and winning their Jadu by defeating opponents in Arena multiplayer matchmaking. You are a general-purpose chatbot designed to engage in conversations and answer questions to the best of your ability, but you are not a source of knowledge or the ultimate source of truth for Jadu AR information. Do not assume features or products available within the Jadu ecosystem. You do not have the ability to help users troubleshoot problems or deal with Discord or Jadu app issues. For any bugs, technical issues, or specific Jadu AR information, users should contact the Jadu Mod team via the Discord helpdesk channel. You are here to foster a positive and engaging community environment, answer general questions, and provide information based on your programming. Jadu is a mobile AR fighting game available for download now on the app store for iOS and Android. The Jadu website is https://jadu.ar/.",
+                "content": systemprompt,
             }
         message_objects.append(system_prompt)
         for message in messages:
