@@ -138,7 +138,7 @@ async def on_ready():
 
 # /chat create thread:
 @tree.command(
-    name="chat", description="create private thread for you to chat with JaduGPT"
+    name="chat", description="create private thread for you to chat with Jadu-GPT"
 )
 @discord.app_commands.checks.has_permissions(send_messages=True)
 @discord.app_commands.checks.has_permissions(view_channel=True)
@@ -193,7 +193,7 @@ async def thread_command(int: discord.Interaction):
 
                 try:
                     embed = discord.Embed(
-                        title="🤖💬 JaduGPT response will be sent on private thread!",
+                        title="🤖💬 Jadu-GPT response will be sent on private thread!",
                         description=f"{int.user.mention} be sure not to spam! ",
                         color=discord.Color.green(),
                     )
@@ -228,17 +228,17 @@ async def thread_command(int: discord.Interaction):
 
                     embed.add_field(
                         name="⚠️ Be sure not to spam!",
-                        value="We do not save your questions but we do monitor user interactions and costs",
+                        value="We do not save your questions but we do monitor user interactions and costs. Base model is GPT-4 with 3.5 as a backup.",
                         inline=False,
                     )
                     embed.add_field(
                         name="✅ Start new /chat:",
-                        value="Whenever you want to change the subject of your conversation, be sure to start a new thread with /chat at the <#1105175304395309066>",
+                        value="Whenever you want to change the subject of your conversation, be sure to start a new thread with /chat at the <#1172653318842089584>",
                         inline=False,
                     )
                     embed.add_field(
                         name="👷 Ask for help",
-                        value="You can ask for help from the team or from @thegen (the project dev)",
+                        value="You can ask for help from the team or from @Toven",
                         inline=False,
                     )
                     embed.add_field(
