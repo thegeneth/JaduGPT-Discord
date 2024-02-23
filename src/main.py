@@ -80,15 +80,15 @@ def choose_model_for_user(user_id):
             print(f"LOG: daily cost of user {user_id} is {total_cost}")
         except Exception as e:
             print(e)
-            return "gpt-3.5-turbo-1106"
+            return "gpt-3.5-turbo"
 
         # Return the model
         if total_cost <= 0.999:
-            return "gpt-4-1106-preview"
+            return "gpt-4-turbo-preview"
         else:
-            return "gpt-3.5-turbo-1106"
+            return "gpt-3.5-turbo"
     else:
-        return "gpt-3.5-turbo-1106"
+        return "gpt-3.5-turbo"
 
 
 def check_network_availability():
