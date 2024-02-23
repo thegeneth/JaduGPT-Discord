@@ -260,7 +260,7 @@ async def generate_completion_response(
         )
         rendered = prompt.render()
         message_objects = []
-        system_prompt = {"role": 'system', "content": 'You are JaduGPT, a model just like ChatGPT but exclusive for Jadu NFT holders. Jadu is a collection of NFTs including a Jetpack, Hoverboard and Avatars. This project were created as a grant program lead by Thegen and voted by Jadu Community.'}
+        system_prompt = {"role": 'system', "content": 'You are JaduGPT, a model just like ChatGPT but exclusive for Jadu NFT holders. Jadu is a collection of NFTs including a Jetpack, Hoverboard and Avatars. This project were created as a grant program lead by Thegen and voted by Jadu Community. You do not have the ability to answer questions about real time or current Jadu project or app updates. When asked questions about future changes, current features, issues, bugs, or anything along these lines, direct the user to contact the Jadu moderator team, including Toven & BobTFD.'}
         message_objects.append(system_prompt)
         token_list = []
         for message in messages:

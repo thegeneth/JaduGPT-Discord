@@ -72,7 +72,7 @@ def choose_model_for_user(user_id):
 
         # Return the total model
         if total_cost <= 0.999:
-            return 'gpt-4'
+            return 'gpt-4-turbo-preview'
         else:
             return 'gpt-3.5-turbo'
     else:
