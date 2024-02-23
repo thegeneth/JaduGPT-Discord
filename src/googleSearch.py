@@ -5,7 +5,9 @@ import tiktoken
 from dotenv import load_dotenv
 import time
 from datetime import datetime
-import openai
+from openai import OpenAI
+
+client = OpenAI()
 load_dotenv()
 
 encoding = tiktoken.encoding_for_model("gpt-4")
@@ -24,13 +26,11 @@ def getGPTAnswer(systemPrompts:list, question:str):
         for prompt in systemPrompts:
             message_objects.append({"role": 'system', "content": f'{prompt}'})
                 
-        response = openai.ChatCompletion.create(
-            model = 'gpt-4',
-            temperature=0,
-            messages=message_objects
-        )
+        response = client.chat.completions.create(model = 'gpt-4',
+        temperature=0,
+        messages=message_objects)
 
-        reply = response.choices[0]["message"]["content"]
+        reply = response.choices[0].message.content
 
         return reply
 

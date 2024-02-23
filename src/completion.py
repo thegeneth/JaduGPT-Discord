@@ -1,6 +1,9 @@
 from enum import Enum
 from dataclasses import dataclass
 import openai
+from openai import OpenAI
+
+client = OpenAI()
 from src.moderation import moderate_message
 from typing import Optional, List
 from src.constants import (
@@ -178,13 +181,11 @@ async def generate_summary(
             else:
                 obj['role'] = 'user'
         
-        response = openai.ChatCompletion.create(
-            model = gptmodel,
-            temperature=0,
-            messages=message_objects
-        )
+        response = client.chat.completions.create(model = gptmodel,
+        temperature=0,
+        messages=message_objects)
 
-        reply = response.choices[0]["message"]["content"]
+        reply = response.choices[0].message.content
 
         costs = sum(GPTGoogleCosts)+0.015
                 
@@ -227,7 +228,7 @@ async def generate_summary(
             status=CompletionResult.OK, reply_text=reply, status_text=None
         )
 
-    except openai.error.InvalidRequestError as e:
+    except openai.InvalidRequestError as e:
         if "This model's maximum context length" in e.user_message:
             return CompletionData(
                 status=CompletionResult.TOO_LONG, reply_text=None, status_text=e
@@ -277,12 +278,10 @@ async def generate_completion_response(
                 obj['role'] = 'user'
         
         loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(
-            model=gptmodel,
-            temperature=0,
-            messages=message_objects
-        ))
-        reply = response.choices[0]["message"]["content"]
+        response = await loop.run_in_executor(None, lambda: client.chat.completions.create(model=gptmodel,
+        temperature=0,
+        messages=message_objects))
+        reply = response.choices[0].message.content
         
         token_list.append(num_tokens_from_string(reply))
         
@@ -331,7 +330,7 @@ async def generate_completion_response(
         return CompletionData(
             status=CompletionResult.OK, reply_text=reply, status_text=None
         )
-    except openai.error.InvalidRequestError as e:
+    except openai.InvalidRequestError as e:
         if "This model's maximum context length" in e.user_message:
             return CompletionData(
                 status=CompletionResult.TOO_LONG, reply_text=None, status_text="Failed to complete the chat, it seems text were too long. Please try again in a new chat. If the error continues reach out to moderators with specifications of when the error occured."

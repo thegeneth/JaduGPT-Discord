@@ -3,7 +3,9 @@ from src.constants import (
     MODERATION_VALUES_FOR_BLOCKED,
     MODERATION_VALUES_FOR_FLAGGED,
 )
-import openai
+from openai import OpenAI
+
+client = OpenAI()
 from typing import Optional, Tuple
 import discord
 from src.utils import logger
@@ -12,10 +14,8 @@ from src.utils import logger
 def moderate_message(
     message: str, user: str
 ) -> Tuple[str, str]:  # [flagged_str, blocked_str]
-    moderation_response = openai.Moderation.create(
-        input=message, model="text-moderation-latest"
-    )
-    category_scores = moderation_response.results[0]["category_scores"] or {}
+    moderation_response = client.moderations.create(input=message, model="text-moderation-latest")
+    category_scores = moderation_response.results[0].category_scores or {}
 
     blocked_str = ""
     flagged_str = ""
