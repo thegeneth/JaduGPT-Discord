@@ -13,15 +13,8 @@ from src.constants import MAX_CHARS_PER_REPLY_MSG, INACTIVATE_THREAD_PREFIX
 
 
 def discord_message_to_message(message: DiscordMessage) -> Optional[Message]:
-    if (
-        message.type == discord.MessageType.thread_starter_message
-        and message.reference.cached_message
-        and len(message.reference.cached_message.embeds) > 0
-        and len(message.reference.cached_message.embeds[0].fields) > 0
-    ):
-        field = message.reference.cached_message.embeds[0].fields[0]
-        if field.value:
-            return Message(user=field.name, text=field.value)
+    if message.type == discord.MessageType.thread_starter_message:
+        return None
     else:
         if message.content:
             return Message(user=message.author.name, text=message.content)

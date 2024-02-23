@@ -1,22 +1,9 @@
 from dotenv import load_dotenv
 import os
-import dacite
-import yaml
 from typing import Dict, List
-from src.base import Config
 
 load_dotenv()
 
-
-# load config.yaml
-SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-CONFIG: Config = dacite.from_dict(
-    Config, yaml.safe_load(open(os.path.join(SCRIPT_DIR, "config.yaml"), "r"))
-)
-
-BOT_NAME = CONFIG.name
-BOT_INSTRUCTIONS = CONFIG.instructions
-EXAMPLE_CONVOS = CONFIG.example_conversations
 
 DISCORD_BOT_TOKEN = os.environ["DISCORD_BOT_TOKEN"]
 DISCORD_CLIENT_ID = os.environ["DISCORD_CLIENT_ID"]
@@ -33,8 +20,8 @@ for s in server_channels:
     values = s.split(":")
     SERVER_TO_MODERATION_CHANNEL[int(values[0])] = int(values[1])
 
-private_thread='362924812288'
-public_thread='328565073920'
+private_thread = "362924812288"
+public_thread = "328565073920"
 # Send Messages, Create Public Threads, Send Messages in Threads, Manage Messages, Manage Threads, Read Message History, Use Slash Command
 BOT_INVITE_URL = f"https://discord.com/api/oauth2/authorize?client_id={DISCORD_CLIENT_ID}&permissions={private_thread}&scope=bot"
 

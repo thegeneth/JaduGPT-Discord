@@ -1,11 +1,9 @@
 import discord
 from discord import Message as DiscordMessage
 import logging
-from src.base import Message, Conversation
 from src.constants import (
     BOT_INVITE_URL,
     DISCORD_BOT_TOKEN,
-    EXAMPLE_CONVOS,
     ACTIVATE_THREAD_PREFX,
     MAX_THREAD_MESSAGES,
     SECONDS_DELAY_RECEIVING_MSG,
@@ -18,14 +16,7 @@ from src.utils import (
     is_last_message_stale,
     discord_message_to_message,
 )
-from src import completion
 from src.completion import generate_completion_response, process_response
-from src.moderation import (
-    moderate_message,
-    send_moderation_blocked_message,
-    send_moderation_flagged_message,
-)
-import pandas as pd
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
@@ -123,16 +114,6 @@ tree = discord.app_commands.CommandTree(client)
 @client.event
 async def on_ready():
     logger.info(f"We have logged in as {client.user}. Invite URL: {BOT_INVITE_URL}")
-    completion.MY_BOT_NAME = client.user.name
-    completion.MY_BOT_EXAMPLE_CONVOS = []
-    for c in EXAMPLE_CONVOS:
-        messages = []
-        for m in c.messages:
-            if m.user == "Lenard":
-                messages.append(Message(user=client.user.name, text=m.text))
-            else:
-                messages.append(m)
-        completion.MY_BOT_EXAMPLE_CONVOS.append(Conversation(messages=messages))
     await tree.sync()
 
 
@@ -145,20 +126,20 @@ async def on_ready():
 @discord.app_commands.checks.bot_has_permissions(send_messages=True)
 @discord.app_commands.checks.bot_has_permissions(view_channel=True)
 @discord.app_commands.checks.bot_has_permissions(manage_threads=True)
-async def thread_command(int: discord.Interaction):
+async def thread_command(interaction: discord.Interaction):
     try:
         # only support creating thread in text channel
-        if not isinstance(int.channel, discord.TextChannel):
+        if not isinstance(interaction.channel, discord.TextChannel):
             return
 
         # block servers not in allow list
-        if should_block(guild=int.guild):
+        if should_block(guild=interaction.guild):
             return
 
         con = POSTGRE_DB_HELPER().get_postgre_connection()
 
         cursor = con.cursor()
-        user_id = str(int.user.id)
+        user_id = str(interaction.user.id)
         sql = f"SELECT * FROM jadugpt.blockedusers WHERE blockeduserid = '{user_id}' AND isblocked = true"
 
         cursor.execute(sql)
@@ -189,20 +170,20 @@ async def thread_command(int: discord.Interaction):
 
         if previous_10min_threads <= 1:
             if len(result) == 0:
-                user = int.user
+                user = interaction.user
 
                 try:
                     embed = discord.Embed(
                         title="🤖💬 Jadu-GPT response will be sent on private thread!",
-                        description=f"{int.user.mention} be sure not to spam! ",
+                        description=f"{interaction.user.mention} be sure not to spam! ",
                         color=discord.Color.green(),
                     )
 
-                    await int.response.send_message(embed=embed)
+                    await interaction.response.send_message(embed=embed)
 
                     # create the thread
-                    thread = await int.channel.create_thread(
-                        name=f"{ACTIVATE_THREAD_PREFX} {int.user.name[:20]}",
+                    thread = await interaction.channel.create_thread(
+                        name=f"{ACTIVATE_THREAD_PREFX} {interaction.user.name[:20]}",
                         slowmode_delay=1,
                         reason="gpt-bot",
                         auto_archive_duration=60,
@@ -210,7 +191,7 @@ async def thread_command(int: discord.Interaction):
                         type=None,
                     )
 
-                    await thread.send(f"{int.user.mention}")
+                    await thread.send(f"{interaction.user.mention}")
 
                     query = (
                         "INSERT INTO jadugpt.threads (date, userid) VALUES  (%s, %s)"
@@ -251,7 +232,7 @@ async def thread_command(int: discord.Interaction):
 
                 except Exception as e:
                     logger.exception(e)
-                    await int.response.send_message(
+                    await interaction.response.send_message(
                         f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.",
                         ephemeral=True,
                     )
@@ -259,15 +240,15 @@ async def thread_command(int: discord.Interaction):
         else:
             embed = discord.Embed(
                 title="🚫 Limit reached ",
-                description=f"{int.user.mention} Seems like you reached the limit of new threads. Please wait 10 minutes and try /chat again.",
+                description=f"{interaction.user.mention} Seems like you reached the limit of new threads. Please wait 10 minutes and try /chat again.",
                 color=discord.Color.red(),
             )
 
-            await int.response.send_message(embed=embed)
+            await interaction.response.send_message(embed=embed)
 
     except Exception as e:
         logger.exception(e)
-        await int.response.send_message(
+        await interaction.response.send_message(
             f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.",
             ephemeral=True,
         )
@@ -280,15 +261,17 @@ async def thread_command(int: discord.Interaction):
 @discord.app_commands.checks.bot_has_permissions(send_messages=True)
 @discord.app_commands.checks.bot_has_permissions(view_channel=True)
 @discord.app_commands.checks.bot_has_permissions(manage_threads=True)
-async def deny_command(int: discord.Interaction, message: str):
+async def deny_command(interaction: discord.Interaction, user: discord.User):
     try:
         # only support creating thread in text channel
-        if not isinstance(int.channel, discord.Thread):
+        if not isinstance(interaction.channel, discord.Thread):
             return
 
         # block servers not in allow list
-        if should_block(guild=int.guild):
+        if should_block(guild=interaction.guild):
             return
+
+        userID = user.id
 
         con = POSTGRE_DB_HELPER().get_postgre_connection()
 
@@ -296,28 +279,28 @@ async def deny_command(int: discord.Interaction, message: str):
 
         sql = "INSERT INTO jadugpt.blockedusers (moderator, blockeduserid, datetime, isblocked) VALUES  (%s, %s, %s, %s)"
 
-        val = (str(int.user), str(message), str(datetime.now()), 1)
+        val = (str(interaction.user), str(userID), str(datetime.now()), True)
         cursor.execute(sql, val)
         con.commit()
 
         try:
-            await int.response.send_message(f"/deny by {int.user.mention}")
+            await interaction.response.send_message(f"/deny by {interaction.user.mention}")
 
         except Exception as e:
             logger.exception(e)
-            await int.response.send_message(
+            await interaction.response.send_message(
                 f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.",
                 ephemeral=True,
             )
             return
 
-        thread = int.channel
+        thread = interaction.channel
 
-        await thread.send(f"{int.user.mention}" + " blocked UserID " + f'"{message}"')
+        await thread.send(f"{interaction.user.mention}" + " blocked UserID " + f'"{userID}"')
 
     except Exception as e:
         logger.exception(e)
-        await int.response.send_message(
+        await interaction.response.send_message(
             f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.",
             ephemeral=True,
         )
@@ -330,27 +313,29 @@ async def deny_command(int: discord.Interaction, message: str):
 @discord.app_commands.checks.bot_has_permissions(send_messages=True)
 @discord.app_commands.checks.bot_has_permissions(view_channel=True)
 @discord.app_commands.checks.bot_has_permissions(manage_threads=True)
-async def allow_command(int: discord.Interaction, user: discord.User):
+async def allow_command(interaction: discord.Interaction, user: discord.User):
     try:
         # only support creating thread in text channel
-        if not isinstance(int.channel, discord.Thread):
+        if not isinstance(interaction.channel, discord.Thread):
             return
 
         # block servers not in allow list
-        if should_block(guild=int.guild):
+        if should_block(guild=interaction.guild):
             return
+
+        userId = user.id
 
         con = POSTGRE_DB_HELPER().get_postgre_connection()
 
         cursor = con.cursor()
 
-        sql = "UPDATE jadugpt.blockedusers SET isblocked = 0 WHERE blockeduserid = %s"
+        sql = "UPDATE jadugpt.blockedusers SET isblocked = %s WHERE blockeduserid = %s"
 
-        val = str(user.id)
+        val = (False, str(user.id))
         cursor.execute(sql, val)
         con.commit()
 
-        sql2 = f"SELECT * FROM jadugpt.threads WHERE userid = '{str(user.id)}'"
+        sql2 = f"SELECT * FROM jadugpt.threads WHERE userid = '{str(userId)}'"
 
         cursor.execute(sql2)
         result2 = cursor.fetchall()
@@ -359,38 +344,38 @@ async def allow_command(int: discord.Interaction, user: discord.User):
             most_recent_datetime = None
 
             for element in tuple_list:
-                timestamp = datetime.strptime(element[0], "%Y-%m-%d %H:%M:?.%f")
+                timestamp = datetime.strptime(element[0], "%Y-%m-%d %H:%M:%S.%f")
                 if most_recent_datetime is None or timestamp > most_recent_datetime:
                     most_recent_datetime = timestamp
 
             return most_recent_datetime
 
         most_recent_datetime = get_most_recent_datetime(result2)
+    
+        sql3 = "UPDATE jadugpt.threads SET allowed = 'allow' WHERE date = %s AND userid = %s"
 
-        sql3 = "UPDATE jadugpt.threads SET allowed = 'allow' WHERE date = '%s' AND userid = '%s'"
-
-        val = (str(most_recent_datetime), str(user.id))
+        val = (str(most_recent_datetime), str(userId))
         cursor.execute(sql3, val)
         con.commit()
 
         try:
-            await int.response.send_message(f"/allow by {int.user.mention}")
+            await interaction.response.send_message(f"/allow by {interaction.user.mention}")
 
         except Exception as e:
             logger.exception(e)
-            await int.response.send_message(
+            await interaction.response.send_message(
                 f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.",
                 ephemeral=True,
             )
             return
 
-        thread = int.channel
+        thread = interaction.channel
 
-        await thread.send(f"{int.user.mention}" + " unblocked UserID " + f'"{user.id}"')
+        await thread.send(f"{interaction.user.mention}" + " unblocked UserID " + f'"{userId}"')
 
     except Exception as e:
         logger.exception(e)
-        await int.response.send_message(
+        await interaction.response.send_message(
             f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.",
             ephemeral=True,
         )
@@ -403,14 +388,14 @@ async def allow_command(int: discord.Interaction, user: discord.User):
 @discord.app_commands.checks.bot_has_permissions(send_messages=True)
 @discord.app_commands.checks.bot_has_permissions(view_channel=True)
 @discord.app_commands.checks.bot_has_permissions(manage_threads=True)
-async def costs_command(int: discord.Interaction):
+async def costs_command(interaction: discord.Interaction):
     try:
         # only support creating thread in text channel
-        if not isinstance(int.channel, discord.Thread):
+        if not isinstance(interaction.channel, discord.Thread):
             return
 
         # block servers not in allow list
-        if should_block(guild=int.guild):
+        if should_block(guild=interaction.guild):
             return
 
         con = POSTGRE_DB_HELPER().get_postgre_connection()
@@ -423,17 +408,17 @@ async def costs_command(int: discord.Interaction):
         result = cursor.fetchall()
 
         try:
-            await int.response.send_message(f"/costs by {int.user.mention}")
+            await interaction.response.send_message(f"/costs by {interaction.user.mention}")
 
         except Exception as e:
             logger.exception(e)
-            await int.response.send_message(
+            await interaction.response.send_message(
                 f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.",
                 ephemeral=True,
             )
             return
 
-        thread = int.channel
+        thread = interaction.channel
 
         embed = discord.Embed(
             color=discord.Color.green(),
@@ -460,7 +445,7 @@ async def costs_command(int: discord.Interaction):
 
     except Exception as e:
         logger.exception(e)
-        await int.response.send_message(
+        await interaction.response.send_message(
             f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.",
             ephemeral=True,
         )
@@ -499,6 +484,11 @@ async def on_message(message: DiscordMessage):
             # too many messages, no longer going to reply
             await close_thread(thread=thread)
             return
+        
+        guild = discord.utils.get(client.guilds, id=669643831435722754)
+        logchannel = guild.get_channel(1067344885977460787) or await guild.fetch_channel(
+            1067344885977460787
+        )
 
         con = POSTGRE_DB_HELPER().get_postgre_connection()
 
@@ -509,53 +499,10 @@ async def on_message(message: DiscordMessage):
 
         cursor.execute(sql)
         result = cursor.fetchall()
-
+        
         if len(result) == 0:
             if str(message.content[0:2]) != "<@":
                 if str(message.content[0:1]) != "/":
-                    # moderate the message
-                    flagged_str, blocked_str = moderate_message(
-                        message=message.content, user=message.author
-                    )
-                    await send_moderation_blocked_message(
-                        guild=message.guild,
-                        user=message.author,
-                        blocked_str=blocked_str,
-                        message=message.content,
-                    )
-                    if len(blocked_str) > 0:
-                        try:
-                            await message.delete()
-                            await thread.send(
-                                embed=discord.Embed(
-                                    description=f"❌ **{message.author}'s message has been deleted by moderation.**",
-                                    color=discord.Color.red(),
-                                )
-                            )
-                            return
-                        except Exception as e:
-                            await thread.send(
-                                embed=discord.Embed(
-                                    description=f"❌ **{message.author}'s message has been blocked by moderation but could not be deleted. Missing Manage Messages permission in this Channel.**",
-                                    color=discord.Color.red(),
-                                )
-                            )
-                            return
-                    await send_moderation_flagged_message(
-                        guild=message.guild,
-                        user=message.author,
-                        flagged_str=flagged_str,
-                        message=message.content,
-                        url=message.jump_url,
-                    )
-                    if len(flagged_str) > 0:
-                        await thread.send(
-                            embed=discord.Embed(
-                                description=f"⚠️ **{message.author}'s message has been flagged by moderation.**",
-                                color=discord.Color.yellow(),
-                            )
-                        )
-
                     # wait a bit in case user has more messages
                     if SECONDS_DELAY_RECEIVING_MSG > 0:
                         await asyncio.sleep(SECONDS_DELAY_RECEIVING_MSG)
@@ -568,7 +515,7 @@ async def on_message(message: DiscordMessage):
                             return
 
                     logger.info(
-                        f"Thread message to process - {message.author}: {message.content[:50]} - {thread.name} {thread.jump_url}"
+                        f"Thread message to process - {message.author}: {message.content[:30]} - {thread.name} {thread.jump_url}"
                     )
 
                     channel_messages = [
@@ -584,15 +531,8 @@ async def on_message(message: DiscordMessage):
                             messages=channel_messages,
                             user=message.author,
                             gptmodel=choose_model_for_user(message.author.id),
+                            connection=con
                         )
-
-                    if is_last_message_stale(
-                        interaction_message=message,
-                        last_message=thread.last_message,
-                        bot_id=client.user.id,
-                    ):
-                        # there is another message and its not from us, so ignore this response
-                        return
 
                     # send response
                     await process_response(
@@ -605,11 +545,12 @@ async def on_message(message: DiscordMessage):
                     description=f"{message.author.mention} please contact moderators! ",
                     color=discord.Color.green(),
                 )
-
+                await logchannel.send(f"{message.author.mention} has been blocked from using /chat command in thread {thread.name} {thread.jump_url}")
                 await message.channel.send(embed=embed)
 
             except Exception as e:
                 logger.exception(e)
+                await logchannel.send(f"Something went wrong trying to start chat with {message.author.mention} in thread {thread.name} {thread.jump_url}. Error message: {e}")
                 await message.channel.send(
                     f"Failed to start chat, please try again. If the error continues reach out to moderators with specifications of when the error occured.",
                     ephemeral=True,
@@ -618,6 +559,7 @@ async def on_message(message: DiscordMessage):
 
     except Exception as e:
         logger.exception(e)
+        await logchannel.send(f"Something went wrong in on_message. Error message: {e}")
 
 
 client.run(DISCORD_BOT_TOKEN)
