@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 import os
 import psycopg2
+from anthropic import AsyncAnthropic
 
 
 load_dotenv()
@@ -19,7 +20,8 @@ postgrehost = str(os.getenv("POSTGREHOST"))
 systemprompt = str(os.getenv("SYSTEMPROMPT"))
 encoding = tiktoken.encoding_for_model("gpt-4")
 
-client = AsyncOpenAI()
+oai_client = AsyncOpenAI()
+anthropic_client = AsyncAnthropic()
 
 class CompletionResult(Enum):
     OK = 0
@@ -46,7 +48,8 @@ async def generate_completion_response(
             "role": "system",
             "content": systemprompt,
         }
-        message_objects.append(system_prompt)
+        if gptmodel.lower() != "claude":
+            message_objects.append(system_prompt)
         for message in messages:
             if message.text[0:2] != "<@":
                 message_object = {"role": message.user, "content": str(message.text)}
@@ -54,40 +57,50 @@ async def generate_completion_response(
         for obj in message_objects:
             if obj["role"] == "Jadu-GPT":
                 obj["role"] = "assistant"
-            elif obj["role"] == "system":
-                obj["role"] = "system"
+            elif obj["role"] == "TestBloom":
+                obj["role"] = "assistant"
             else:
                 obj["role"] = "user"
 
-        response = await client.chat.completions.create(
-            model=gptmodel, temperature=0, messages=message_objects
-        )
-
-        prompt_tokens = response.usage.prompt_tokens
-        completion_tokens = response.usage.completion_tokens
-
-        if gptmodel == "gpt-3.5-turbo":
-            input_cost = prompt_tokens / 1000 * 0.0005
-            output_cost = completion_tokens / 1000 * 0.0015
-            cost = input_cost + output_cost
-            print(
-                f"LOG: model: {response.model}, user: {user}, cost: {'{:.4f}'.format(cost)}"
+        if gptmodel.lower() == "claude":
+            response = await anthropic_client.messages.create(
+                model="claude-3-5-sonnet-20240620",
+                messages=message_objects,
+                system=systemprompt,  # Add system prompt as a separate parameter
+                max_tokens=4096
             )
+            reply = response.content[0].text
+            prompt_tokens = response.usage.input_tokens
+            completion_tokens = response.usage.output_tokens
+            input_cost = prompt_tokens / 1000000 * 3  # $3 per million tokens of input
+            output_cost = completion_tokens / 1000000 * 15  # $15 per million tokens of output
+            cost = input_cost + output_cost
         else:
-            input_cost = prompt_tokens / 1000 * 0.01
-            output_cost = completion_tokens / 1000 * 0.03
-            cost = input_cost + output_cost
-            print(
-                f"LOG: model: {response.model}, user: {user}, cost: {'{:.4f}'.format(cost)}"
+            response = await oai_client.chat.completions.create(
+                model=gptmodel, temperature=0, messages=message_objects
             )
+            reply = response.choices[0].message.content
+            prompt_tokens = response.usage.prompt_tokens
+            completion_tokens = response.usage.completion_tokens
+
+            if gptmodel == "gpt-3.5-turbo":
+                input_cost = prompt_tokens / 1000 * 0.0005
+                output_cost = completion_tokens / 1000 * 0.0015
+                cost = input_cost + output_cost
+            else:
+                input_cost = prompt_tokens / 1000 * 0.01
+                output_cost = completion_tokens / 1000 * 0.03
+                cost = input_cost + output_cost
+
+        print(
+            f"LOG: model: {gptmodel}, user: {user}, cost: {'{:.4f}'.format(cost)}"
+        )
 
         cur = connection.cursor()
         sql = "INSERT INTO jadugpt.costs VALUES (%s, %s, %s, %s)"
         val = (str(user), str(user.id), str(cost), str(datetime.now()))
         cur.execute(sql, val)
         connection.commit()
-
-        reply = response.choices[0].message.content
 
         return CompletionData(
             status=CompletionResult.OK, reply_text=reply, status_text=None
@@ -109,12 +122,10 @@ async def generate_completion_response(
     except Exception as e:
         logger.exception(e)
         return CompletionData(
-            # status=CompletionResult.OTHER_ERROR, reply_text=None, status_text=str(e)
             status=CompletionResult.OTHER_ERROR,
             reply_text=None,
             status_text="Oops, an error occured while processing your request. Please try again and if error persist, please reach out to moderators. You can add them to the Thread by mentioning them with @.",
         )
-
 
 async def process_response(
     user: str, thread: discord.Thread, response_data: CompletionData

@@ -7,6 +7,7 @@ from src.constants import (
     ACTIVATE_THREAD_PREFX,
     MAX_THREAD_MESSAGES,
     SECONDS_DELAY_RECEIVING_MSG,
+    TEST_TOKEN,
 )
 import asyncio
 from src.utils import (
@@ -44,6 +45,8 @@ class POSTGRE_DB_HELPER:
 
 def choose_model_for_user(user_id):
     user_id = str(user_id)
+    if(user_id == "165587622243074048"):
+        return "claude"
     skip_values = ["1104163607979249736", "1105175899743203358"]
 
     if str(user_id) not in skip_values:
@@ -75,7 +78,7 @@ def choose_model_for_user(user_id):
 
         # Return the model
         if total_cost <= 0.999:
-            return "gpt-4-turbo-preview"
+            return "gpt-4o"
         else:
             return "gpt-3.5-turbo"
     else:
@@ -460,7 +463,7 @@ async def on_message(message: DiscordMessage):
         if not isinstance(channel, discord.Thread):
             return
         # if the channel is a thread, check the thread parent channel id.
-        if channel.parent_id != 1172653318842089584:
+        if channel.parent_id not in [1172653318842089584, 1254893486444908584]:
             return
         # ignore messages from the bot
         if message.author == client.user:
